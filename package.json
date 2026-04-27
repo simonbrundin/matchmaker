@@ -1,0 +1,25 @@
+{
+  "name": "matchmaker",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxtjs/supabase": "^2.0.6",
+    "grammy": "^1.42.0",
+    "node-cron": "^4.2.1",
+    "nuxt": "^4.4.2",
+    "openai": "^6.34.0",
+    "vue": "^3.5.33",
+    "vue-router": "^5.0.6"
+  },
+  "devDependencies": {
+    "@types/node-cron": "^3.0.11",
+    "nitropack": "^2.13.3"
+  }
+}
