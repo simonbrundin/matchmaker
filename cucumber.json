@@ -1,0 +1,8 @@
+{
+  "default": {
+    "format": ["@cucumber/pretty-formatter"],
+    "paths": ["features/**/*.feature"],
+    "require": ["features/steps/*.ts", "features/support/*.ts"],
+    "publish": false
+  }
+}

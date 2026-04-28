@@ -7,7 +7,9 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "test": "cucumber-js",
+    "test:report": "cucumber-js --format html:report.html"
   },
   "dependencies": {
     "@nuxtjs/supabase": "^2.0.6",
@@ -19,6 +21,8 @@
     "vue-router": "^5.0.6"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^12.8.2",
+    "@cucumber/pretty-formatter": "^3.2.0",
     "@types/node-cron": "^3.0.11",
     "nitropack": "^2.13.3"
   }
