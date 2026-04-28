@@ -71,7 +71,9 @@ export default defineEventHandler(async (event) => {
         const message = await generateInviteMessage(
           candidate.player.name,
           dateStr,
-          wt.time
+          wt.time,
+          undefined,
+          booking.id
         )
 
         await smsClient.sendMessage(candidate.player.phone, message)

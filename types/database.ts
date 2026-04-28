@@ -38,14 +38,18 @@ export interface WeeklyTime {
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
 
-export interface Booking {
+export interface BookingBase {
   id: string
   scheduled_date: string
   scheduled_time: string
   status: BookingStatus
+  host_confirmed: boolean
+  host_player_id: string
   created_at: string
   updated_at: string
 }
+
+export interface Booking extends BookingBase {}
 
 export type BookedPlayerStatus = 'invited' | 'confirmed' | 'declined' | 'waitlist'
 export type PlayerResponse = 'ja' | 'nej' | 'kanske' | null
@@ -84,6 +88,7 @@ export interface Message {
   sent_at: string
   response_received_at: string | null
   response: PlayerResponse
+  invite_round: number | null
   player?: Player
 }
 
@@ -101,6 +106,10 @@ export interface AIResponseSuggestion {
 
 export interface BookingWithPlayers extends Booking {
   booked_players: BookedPlayer[]
+}
+
+export interface Booking extends BookingBase {
+  booked_players?: BookedPlayer[]
 }
 
 export interface PlayerWithStats extends Player {

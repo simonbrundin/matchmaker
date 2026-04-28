@@ -94,8 +94,14 @@ export async function generateInviteMessage(
   playerName: string,
   date: string,
   time: string,
-  location?: string
+  location?: string,
+  bookingId?: string
 ): Promise<string> {
+  let shortRef = ''
+  if (bookingId) {
+    shortRef = ` [Ref: ${bookingId.slice(-6).toUpperCase()}]`
+  }
+
   const client = getOpenAIClient()
 
   const completion = await client.chat.completions.create({
@@ -103,17 +109,17 @@ export async function generateInviteMessage(
     messages: [
       {
         role: 'system',
-        content: 'Du skapar inbjudningsmeddelanden för padel. Var kort och trevlig.',
+        content: 'Du skapar inbjudningsmeddelanden för padel. Var kort och trevlig. Inkludera alltid referenskoden i slutet av meddelandet.',
       },
       {
         role: 'user',
-        content: `Skapa ett inbjudnings-SMS till ${playerName} för padel ${date} kl ${time}${location ? ` på ${location}` : ''}. Format: informellt, max 2 meningar.`,
+        content: `Skapa inbjudnings-SMS till ${playerName} för padel ${date} kl ${time}.${shortRef} Max 2 meningar.`,
       },
     ],
   })
 
   return (
     completion.choices[0]?.message?.content ||
-    `Hej ${playerName}! Vill du spela padel ${date} kl ${time}?`
+    `Hej ${playerName}! Vill du spela padel ${date} kl ${time}?${shortRef}`
   )
 }
