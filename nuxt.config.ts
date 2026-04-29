@@ -2,7 +2,14 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   
-  modules: ['@nuxtjs/supabase'],
+  modules: ['@nuxtjs/supabase', '@nuxt/ui'],
+  css: ['~/assets/css/main.css'],
+  
+  ui: {
+    experimental: {
+      componentDetection: true
+    }
+  },
 
   supabase: {
     redirect: false,

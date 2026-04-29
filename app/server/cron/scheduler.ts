@@ -5,9 +5,16 @@ import { generateInviteMessage } from '../lib/ai'
 import { getSupabaseAdmin } from '../lib/supabase'
 import { sendToAdmin } from '../lib/telegram'
 
-const bookingService = getBookingService()
-const smsClient = getSMSClient()
-const supabase = getSupabaseAdmin()
+let bookingService: any = null
+let smsClient: any = null
+let supabase: any = null
+
+function getServices() {
+  if (!bookingService) bookingService = getBookingService()
+  if (!smsClient) smsClient = getSMSClient()
+  if (!supabase) supabase = getSupabaseAdmin()
+  return { bookingService, smsClient, supabase }
+}
 
 const HOST_DAYS_AHEAD = 5
 const PLAYER_DAYS_AHEAD = 4
@@ -59,6 +66,7 @@ export function startCronJobs() {
 }
 
 async function sendHostConfirmations() {
+  const { bookingService, smsClient, supabase } = getServices()
   const target = new Date()
   target.setDate(target.getDate() + HOST_DAYS_AHEAD)
   const dateStr = target.toISOString().split('T')[0]
@@ -110,6 +118,7 @@ async function sendHostConfirmations() {
 }
 
 async function sendHostReminders() {
+  const { bookingService, smsClient, supabase } = getServices()
   for (let days = 5; days >= 1; days--) {
     const target = new Date()
     target.setDate(target.getDate() + days)
@@ -172,6 +181,7 @@ async function sendHostReminders() {
 }
 
 async function sendPlayerInvites() {
+  const { bookingService, smsClient, supabase } = getServices()
   const round = getRound()
 
   await sendToAdmin(`📨 Spelarinbjudningar (runda ${round})...`)
@@ -216,6 +226,7 @@ async function sendPlayerInvites() {
 }
 
 async function sendInvitesForBooking(booking: any, dateStr: string, time: string, confirmed: number, round: number) {
+  const { bookingService, smsClient, supabase } = getServices()
   const { data: bp } = await supabase
     .from('booked_players')
     .select('player_id, status')

@@ -12,6 +12,7 @@
     "test:report": "cucumber-js --format html:report.html"
   },
   "dependencies": {
+    "@nuxt/ui": "^4.7.0",
     "@nuxtjs/supabase": "^2.0.6",
     "grammy": "^1.42.0",
     "node-cron": "^4.2.1",

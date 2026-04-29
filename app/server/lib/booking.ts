@@ -13,12 +13,19 @@ import type {
 const CONFIRMATION_MESSAGE = `🎉 Padel imorgon kl {time} är bekräftad! {count}/4 spelare klara. Välkommen!`
 
 export class BookingService {
-  private supabase = getSupabaseAdmin()
+  private supabase: any = null
+
+  private getSupabase() {
+    if (!this.supabase) {
+      this.supabase = getSupabaseAdmin()
+    }
+    return this.supabase
+  }
 
   async notifyAllPlayers(booking: Booking): Promise<void> {
     const smsClient = getSMSClient()
     
-    const { data: bookedPlayers } = await this.supabase
+    const { data: bookedPlayers } = await this.getSupabase()
       .from('booked_players')
       .select('*, player:players(*)')
       .eq('booking_id', booking.id)
@@ -43,7 +50,7 @@ export class BookingService {
 
   async getWeeklyTimesForDate(date: string): Promise<WeeklyTime[]> {
     const dayOfWeek = new Date(date).getDay()
-    const { data, error } = await this.supabase
+    const { data, error } = await this.getSupabase()
       .from('weekly_times')
       .select('*')
       .eq('is_active', true)
@@ -57,7 +64,7 @@ export class BookingService {
     playerId: string,
     date: string
   ): Promise<boolean> {
-    const { data: unavailabilities } = await this.supabase
+    const { data: unavailabilities } = await this.getSupabase()
       .from('unavailabilities')
       .select('*')
       .eq('player_id', playerId)
@@ -73,7 +80,7 @@ export class BookingService {
     date: string,
     time: string
   ): Promise<InviteCandidate[]> {
-    const { data: players, error } = await this.supabase
+    const { data: players, error } = await this.getSupabase()
       .from('players')
       .select('*')
       .eq('is_active', true)
@@ -89,7 +96,7 @@ export class BookingService {
       const isAvailable = await this.getPlayerAvailability(player.id, date)
       if (!isAvailable) continue
 
-      const { data: lastMessage } = await this.supabase
+      const { data: lastMessage } = await this.getSupabase()
         .from('messages')
         .select('sent_at')
         .eq('player_id', player.id)
@@ -97,7 +104,7 @@ export class BookingService {
         .limit(1)
         .single()
 
-      const { data: friends } = await this.supabase
+      const { data: friends } = await this.getSupabase()
         .from('friends')
         .select('*')
         .eq('friend_id', player.id)
@@ -134,7 +141,7 @@ export class BookingService {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    const { data: recentMessages } = await this.supabase
+    const { data: recentMessages } = await this.getSupabase()
       .from('messages')
       .select('response')
       .eq('player_id', player.id)
@@ -158,7 +165,7 @@ export class BookingService {
     date: string,
     time: string
   ): Promise<Booking> {
-    const { data: booking, error } = await this.supabase
+    const { data: booking, error } = await this.getSupabase()
       .from('bookings')
       .insert({
         scheduled_date: date,
@@ -174,7 +181,7 @@ export class BookingService {
 
     return booking
 
-    const { error: hostError } = await this.supabase
+    const { error: hostError } = await this.getSupabase()
       .from('booked_players')
       .insert({
         booking_id: booking.id,
@@ -193,7 +200,7 @@ export class BookingService {
     playerId: string,
     inviteNumber: number
   ): Promise<BookedPlayer> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.getSupabase()
       .from('booked_players')
       .insert({
         booking_id: bookingId,
@@ -206,7 +213,7 @@ export class BookingService {
 
     if (error) throw error
 
-    await this.supabase
+    await this.getSupabase()
       .from('players')
       .update({ last_contacted_at: new Date().toISOString() })
       .eq('id', playerId)
@@ -218,7 +225,7 @@ export class BookingService {
     bookedPlayerId: string,
     response: 'ja' | 'nej' | 'kanske'
   ): Promise<void> {
-    const { data: bookedPlayer } = await this.supabase
+    const { data: bookedPlayer } = await this.getSupabase()
       .from('booked_players')
       .select('*')
       .eq('id', bookedPlayerId)
@@ -236,7 +243,7 @@ export class BookingService {
   ): Promise<void> {
     const status = response === 'ja' ? 'confirmed' : response === 'nej' ? 'declined' : 'waitlist'
 
-    await this.supabase
+    await this.getSupabase()
       .from('booked_players')
       .update({
         response,
@@ -245,7 +252,7 @@ export class BookingService {
       })
       .eq('id', bookedPlayerId)
 
-    const { data: booking } = await this.supabase
+    const { data: booking } = await this.getSupabase()
       .from('bookings')
       .select('*')
       .eq('id', bookingId)
@@ -253,14 +260,14 @@ export class BookingService {
 
     if (!booking) return
 
-    const { data: confirmedPlayers } = await this.supabase
+    const { data: confirmedPlayers } = await this.getSupabase()
       .from('booked_players')
       .select('*')
       .eq('booking_id', booking.id)
       .eq('status', 'confirmed')
 
     if (confirmedPlayers && confirmedPlayers.length >= 4) {
-      await this.supabase
+      await this.getSupabase()
         .from('bookings')
         .update({ status: 'confirmed' })
         .eq('id', booking.id)
@@ -268,7 +275,7 @@ export class BookingService {
   }
 
   async getPlayerPendingBookings(playerId: string): Promise<Booking[]> {
-    const { data: bookedPlayers } = await this.supabase
+    const { data: bookedPlayers } = await this.getSupabase()
       .from('booked_players')
       .select('booking_id, booking:bookings(*)')
       .eq('player_id', playerId)
@@ -286,7 +293,7 @@ export class BookingService {
   }
 
   async getBookingWithPlayers(bookingId: string): Promise<Booking | null> {
-    const { data: booking, error } = await this.supabase
+    const { data: booking, error } = await this.getSupabase()
       .from('bookings')
       .select('*, booked_players(*, player:players(*))')
       .eq('id', bookingId)
@@ -298,7 +305,7 @@ export class BookingService {
 
   async findBookingByShortRef(shortRef: string): Promise<Booking | null> {
     const normalizedRef = shortRef.toUpperCase()
-    const { data: bookings, error } = await this.supabase
+    const { data: bookings, error } = await this.getSupabase()
       .from('bookings')
       .select('*')
       .eq('status', 'pending')

@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (query.search) {
-    queryBuilder = queryBuilder.or(`name.ilike.%${query.search}%,phone.ilike.%${query.search}%`)
+    queryBuilder = queryBuilder.or(`name.ilike.*${query.search}*,phone.ilike.*${query.search}*`)
   }
 
   const { data: players, error } = await queryBuilder.order('name')

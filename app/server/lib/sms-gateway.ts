@@ -82,7 +82,12 @@ let smsClient: SMSGatewayClient | null = null
 
 export function getSMSClient(): SMSGatewayClient {
   if (!smsClient) {
-    const config = useRuntimeConfig()
+    let config: any
+    try {
+      config = useRuntimeConfig()
+    } catch {
+      throw new Error('SMS Gateway: useRuntimeConfig only available in Nuxt context')
+    }
     if (!config.smsGatewayUrl || !config.smsGatewayApiKey) {
       throw new Error('SMS Gateway configuration missing')
     }
