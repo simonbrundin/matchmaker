@@ -48,7 +48,7 @@ const groups = computed(() => [{
 </script>
 
 <template>
-  <UDashboardGroup unit="rem">
+  <UDashboardGroup unit="rem" class="h-screen">
     <UDashboardSidebar
       id="default"
       v-model:open="open"
@@ -94,6 +94,8 @@ const groups = computed(() => [{
 
     <UDashboardSearch :groups="groups" />
 
-    <slot />
+    <div class="overflow-auto flex-1">
+      <slot />
+    </div>
   </UDashboardGroup>
 </template>
