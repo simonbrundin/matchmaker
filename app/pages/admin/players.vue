@@ -32,8 +32,7 @@
         <template #actions-cell="{ row }">
           <div class="flex gap-2">
             <UButton label="Redigera" variant="outline" size="xs" @click="openEditModal(row)" />
-            <UButton :icon="row.original.is_active ? 'i-lucide-user-x' : 'i-lucide-user-check'" variant="ghost"
-              size="xs" @click="toggleActive(row)" />
+
             <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="deletePlayer(row)" />
           </div>
         </template>
@@ -138,17 +137,6 @@ async function addPlayer() {
   })
   showAddModal.value = false
   newPlayer.value = { name: '', phone: '', elo: 1200 }
-  loadPlayers()
-}
-
-async function toggleActive(row: any) {
-  const player = row.original || row
-  const id = player.id || row.id
-  const isActive = player.is_active ?? row.is_active
-  await $fetch(`/api/admin/players/${id}`, {
-    method: 'PUT',
-    body: { is_active: !isActive }
-  })
   loadPlayers()
 }
 
