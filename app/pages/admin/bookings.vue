@@ -27,7 +27,7 @@
               variant="subtle"
               size="xs"
             >
-              {{ bp.player?.name || 'Okänd' }}
+              {{ bp.player ? playerFullName(bp.player) : 'Okänd' }}
             </UBadge>
           </div>
           <span v-else class="text-muted">0/4</span>
@@ -75,7 +75,7 @@
               class="flex items-center justify-between p-2 rounded bg-elevated"
             >
               <div>
-                <div class="font-medium">{{ bp.player?.name }}</div>
+                <div class="font-medium">{{ bp.player ? playerFullName(bp.player) : 'Okänd' }}</div>
                 <div class="text-xs text-muted">{{ bp.player?.phone }}</div>
               </div>
               <div class="text-right">
@@ -95,6 +95,7 @@
 </template>
 
 <script setup lang="ts">
+import { playerFullName } from '~/utils'
 interface Booking {
   id: string
   scheduled_date: string
@@ -125,7 +126,7 @@ async function loadBookings() {
 
 function getHostName(booking: Booking): string {
   const host = booking.booked_players?.find(bp => bp.player_id === booking.host_player_id)
-  return host?.player?.name || 'Okänd'
+  return host?.player ? playerFullName(host.player) : 'Okänd'
 }
 
 function formatDate(dateStr: string): string {

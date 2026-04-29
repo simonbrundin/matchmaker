@@ -11,10 +11,10 @@ export default defineEventHandler(async (event) => {
   }
 
   if (query.search) {
-    queryBuilder = queryBuilder.or(`name.ilike.*${query.search}*,phone.ilike.*${query.search}*`)
+    queryBuilder = queryBuilder.or(`first_name.ilike.*${query.search}*,last_name.ilike.*${query.search}*,phone.ilike.*${query.search}*`)
   }
 
-  const { data: players, error } = await queryBuilder.order('name')
+  const { data: players, error } = await queryBuilder.order('last_name').order('first_name')
 
   if (error) {
     throw createError({ statusCode: 500, message: error.message })

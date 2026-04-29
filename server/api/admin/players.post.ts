@@ -3,10 +3,10 @@ import type { Player } from '~/types/database'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { phone, name, elo } = body
+  const { phone, first_name, last_name, elo } = body
 
-  if (!phone || !name) {
-    throw createError({ statusCode: 400, message: 'phone and name required' })
+  if (!phone || !first_name) {
+    throw createError({ statusCode: 400, message: 'phone and first_name required' })
   }
 
   const supabase = getSupabaseAdmin()
@@ -15,7 +15,8 @@ export default defineEventHandler(async (event) => {
     .from('players')
     .insert({
       phone,
-      name,
+      first_name,
+      last_name: last_name || null,
       elo: elo || 1200,
     })
     .select()

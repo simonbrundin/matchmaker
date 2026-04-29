@@ -69,7 +69,7 @@ export default defineEventHandler(async (event) => {
         )
 
         const message = await generateInviteMessage(
-          candidate.player.name,
+          candidate.player.first_name,
           dateStr,
           wt.time,
           undefined,
@@ -92,7 +92,7 @@ export default defineEventHandler(async (event) => {
         await new Promise((resolve) => setTimeout(resolve, 1000))
 
       } catch (error) {
-        console.error(`Failed to invite ${candidate.player.name}:`, error)
+        console.error(`Failed to invite ${candidate.player.first_name}:`, error)
       }
     }
 

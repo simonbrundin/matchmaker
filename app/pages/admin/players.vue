@@ -19,6 +19,9 @@
 
     <UCard>
       <UTable :data="players" :columns="columns">
+        <template #name-cell="{ row }">
+          {{ getPlayerName(row.original) }}
+        </template>
         <template #elo-cell="{ row }">
           {{ row.original.elo }}
         </template>
@@ -44,8 +47,11 @@
     <UModal v-model:open="showAddModal" title="Lägg till spelare">
       <template #body>
         <div class="space-y-4">
-          <UFormField label="Namn">
-            <UInput v-model="newPlayer.name" placeholder="Förnamn Efternamn" />
+          <UFormField label="Förnamn">
+            <UInput v-model="newPlayer.first_name" placeholder="Förnamn" />
+          </UFormField>
+          <UFormField label="Efternamn">
+            <UInput v-model="newPlayer.last_name" placeholder="Efternamn (valfritt)" />
           </UFormField>
           <UFormField label="Telefon">
             <UInput v-model="newPlayer.phone" placeholder="+46701234567" />
@@ -65,8 +71,11 @@
     <UModal v-model:open="showEditModal" title="Redigera spelare">
       <template #body>
         <div class="space-y-4">
-          <UFormField label="Namn">
-            <UInput v-model="editData.name" placeholder="Förnamn Efternamn" />
+          <UFormField label="Förnamn">
+            <UInput v-model="editData.first_name" placeholder="Förnamn" />
+          </UFormField>
+          <UFormField label="Efternamn">
+            <UInput v-model="editData.last_name" placeholder="Efternamn (valfritt)" />
           </UFormField>
           <UFormField label="Telefon">
             <UInput v-model="editData.phone" placeholder="+46701234567" />
@@ -91,9 +100,12 @@
 </template>
 
 <script setup lang="ts">
+import { playerFullName } from '~/utils'
+
 interface Player {
   id: string
-  name: string
+  first_name: string
+  last_name: string | null
   phone: string
   elo: number
   is_active: boolean
@@ -106,19 +118,23 @@ const showAddModal = ref(false)
 const showEditModal = ref(false)
 const deleteModal = ref()
 const deleteData = ref<{ id: string; name: string }>()
-const newPlayer = ref({ name: '', phone: '', elo: 1200 })
-const editData = reactive({ id: '', name: '', phone: '', elo: 1200, is_active: true })
+const newPlayer = ref({ first_name: '', last_name: '', phone: '', elo: 1200 })
+const editData = reactive({ id: '', first_name: '', last_name: '', phone: '', elo: 1200, is_active: true })
 
 const columns = [
-  { key: 'name', accessorKey: 'name', label: 'Namn' },
-  { key: 'phone', accessorKey: 'phone', label: 'Telefon' },
-  { key: 'elo', accessorKey: 'elo', label: 'ELO' },
-  { key: 'is_active', accessorKey: 'is_active', label: 'Status' },
-  { key: 'total_matches_played', accessorKey: 'total_matches_played', label: 'Matcher' },
-  { key: 'actions', accessorKey: 'actions', label: '' }
+  { key: 'name', accessorKey: 'name', header: 'Namn' },
+  { key: 'phone', accessorKey: 'phone', header: 'Telefon' },
+  { key: 'elo', accessorKey: 'elo', header: 'ELO' },
+  { key: 'is_active', accessorKey: 'is_active', header: 'Status' },
+  { key: 'total_matches_played', accessorKey: 'total_matches_played', header: 'Matcher' },
+  { key: 'actions', accessorKey: 'actions', header: '' }
 ]
 
 let searchTimeout: NodeJS.Timeout
+
+function getPlayerName(player: Player): string {
+  return playerFullName(player)
+}
 
 async function loadPlayers() {
   const query = search.value ? `?search=${search.value}` : ''
@@ -136,23 +152,29 @@ function debouncedSearch() {
 async function addPlayer() {
   await $fetch('/api/admin/players', {
     method: 'POST',
-    body: newPlayer.value
+    body: {
+      first_name: newPlayer.value.first_name,
+      last_name: newPlayer.value.last_name || null,
+      phone: newPlayer.value.phone,
+      elo: newPlayer.value.elo
+    }
   })
   showAddModal.value = false
-  newPlayer.value = { name: '', phone: '', elo: 1200 }
+  newPlayer.value = { first_name: '', last_name: '', phone: '', elo: 1200 }
   loadPlayers()
 }
 
 function openDeleteModal(row: any) {
   const player = row.original || row
-  deleteData.value = { id: player.id, name: player.name }
+  deleteData.value = { id: player.id, name: playerFullName(player) }
   deleteModal.value?.openModal(deleteData.value)
 }
 
 function editPlayer(row: any) {
   const player = row.original || row
   editData.id = String(player.id)
-  editData.name = String(player.name || '')
+  editData.first_name = String(player.first_name || '')
+  editData.last_name = player.last_name != null ? String(player.last_name) : ''
   editData.phone = player.phone != null ? String(player.phone) : ''
   editData.elo = player.elo != null ? Number(player.elo) : ''
   editData.is_active = Boolean(player.is_active)
@@ -166,7 +188,8 @@ function openEditModal(row: any) {
 async function saveEdit() {
   try {
     const payload: any = {
-      name: editData.name,
+      first_name: editData.first_name,
+      last_name: editData.last_name || null,
       phone: editData.phone || null,
       elo: editData.elo === '' ? null : editData.elo,
       is_active: editData.is_active

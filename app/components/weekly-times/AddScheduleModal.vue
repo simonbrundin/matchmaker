@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { playerFullName } from '~/utils'
 
 const open = ref(false)
 const loading = ref(false)
@@ -29,7 +30,7 @@ const state = reactive<Partial<Schema>>({
   is_active: true
 })
 
-const players = ref<{ id: string; name: string; phone: string }[]>([])
+const players = ref<{ id: string; first_name: string; last_name: string | null; phone: string }[]>([])
 const playerSearch = ref('')
 const showDropdown = ref(false)
 const playerSearchInput = ref<any>(null)
@@ -59,7 +60,7 @@ const filteredPlayers = computed(() => {
   const search = playerSearch.value.toLowerCase().trim()
   if (!search) return players.value.slice(0, 10)
   return players.value.filter(p =>
-    p.name.toLowerCase().includes(search) ||
+    playerFullName(p).toLowerCase().includes(search) ||
     (p.phone && p.phone.includes(search))
   ).slice(0, 10)
 })
@@ -112,13 +113,13 @@ function onInput(e: Event) {
   }
 }
 
-function selectPlayer(player: { id: string; name: string; phone: string }) {
+function selectPlayer(player: { id: string; first_name: string; last_name: string | null; phone: string }) {
   if (blurTimeout) {
     clearTimeout(blurTimeout)
     blurTimeout = null
   }
   state.player_id = player.id
-  playerSearch.value = player.name
+  playerSearch.value = playerFullName(player)
   nextTick(() => {
     showDropdown.value = false
   })
@@ -174,7 +175,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
     toast.add({
       title: 'Succé',
-      description: `Tid skapad för ${selectedPlayer.value?.name}`,
+      description: `Tid skapad för ${selectedPlayer.value ? playerFullName(selectedPlayer.value) : ''}`,
       color: 'success'
     })
     open.value = false
@@ -218,13 +219,13 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                 class="px-3 py-2 hover:bg-muted cursor-pointer"
                 @mousedown.prevent="selectPlayer(player)"
               >
-                <div class="font-medium">{{ player.name }}</div>
+                <div class="font-medium">{{ playerFullName(player) }}</div>
                 <div class="text-sm text-muted">{{ player.phone || 'Inget nummer' }}</div>
               </div>
             </div>
           </div>
           <div v-if="selectedPlayer && !showDropdown" class="text-sm text-muted mt-1">
-            Vald: {{ selectedPlayer.name }}
+            Vald: {{ playerFullName(selectedPlayer) }}
           </div>
         </UFormField>
 

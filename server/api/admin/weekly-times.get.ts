@@ -16,7 +16,8 @@ export default defineEventHandler(async () => {
       created_at,
       player:players (
         id,
-        name,
+        first_name,
+        last_name,
         phone
       )
     `)

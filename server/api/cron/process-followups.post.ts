@@ -75,7 +75,7 @@ export default defineEventHandler(async (event) => {
 
         messagesSent++
       } catch (error) {
-        console.error(`Failed to send followup to ${invite.player.name}:`, error)
+        console.error(`Failed to send followup to ${invite.player.first_name}:`, error)
       }
     }
   }

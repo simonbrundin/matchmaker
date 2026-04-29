@@ -56,6 +56,7 @@
 </template>
 
 <script setup lang="ts">
+import { playerFullName } from '~/utils'
 interface Summary {
   activePlayers: number
   weekdaySchedules: number
@@ -119,7 +120,7 @@ async function loadData() {
       interval_days: s.interval_days,
       start_date: s.start_date,
       is_active: s.is_active ? 'Aktiv' : 'Inaktiv',
-      player_name: s.player?.name || '',
+      player_name: s.player ? playerFullName(s.player) : '',
       player_phone: s.player?.phone || '',
       time_display: s.time?.substring(0, 5) || '',
       type: s.interval_days ? 'Intervall' : 'Veckobaserad',

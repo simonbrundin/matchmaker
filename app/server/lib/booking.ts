@@ -42,7 +42,7 @@ export class BookingService {
         try {
           await smsClient.sendMessage(bp.player.phone, message)
         } catch (error) {
-          console.error(`Failed to notify ${bp.player.name}:`, error)
+          console.error(`Failed to notify player:`, error)
         }
       }
     }

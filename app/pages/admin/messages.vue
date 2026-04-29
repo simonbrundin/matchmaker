@@ -21,7 +21,7 @@
               class="flex items-center gap-2"
             >
               <UBadge :color="playerStatusColor(pm.status)" variant="subtle" size="xs">
-                {{ pm.player?.name || 'Okänd' }}
+                {{ pm.player ? playerFullName(pm.player) : 'Okänd' }}
               </UBadge>
               <span v-if="pm.response" class="text-xs text-muted">
                 ({{ pm.response }})
@@ -71,7 +71,7 @@
             class="border rounded-lg p-4"
           >
             <div class="flex items-center justify-between mb-3">
-              <div class="font-medium">{{ pm.player?.name }}</div>
+              <div class="font-medium">{{ pm.player ? playerFullName(pm.player) : 'Okänd' }}</div>
               <div class="flex items-center gap-2">
                 <UBadge :color="playerStatusColor(pm.status)" size="xs">{{ pm.status }}</UBadge>
                 <span v-if="pm.response" class="text-sm text-muted">Svar: {{ pm.response }}</span>
@@ -121,6 +121,7 @@
 </template>
 
 <script setup lang="ts">
+import { playerFullName } from '~/utils'
 interface Message {
   id: string
   direction: 'outgoing' | 'incoming'
@@ -131,7 +132,7 @@ interface Message {
 }
 
 interface PlayerMessages {
-  player: { id: string; name: string; phone: string }
+  player: { id: string; first_name: string; last_name: string | null; phone: string }
   status: string
   response: string | null
   messages: Message[]

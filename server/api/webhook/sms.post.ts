@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from '~/server/lib/supabase'
 import { getSMSClient } from '~/server/lib/sms-gateway'
 import { sendToAdmin } from '~/server/lib/telegram'
 import { analyzeIncomingMessage } from '~/server/lib/ai'
+import { playerFullName } from '~/utils'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -34,7 +35,7 @@ export default defineEventHandler(async (event) => {
     })
 
     try {
-      const aiResult = await analyzeIncomingMessage(text, player.name)
+      const aiResult = await analyzeIncomingMessage(text, playerFullName(player))
       
       await supabase.from('ai_response_suggestions').insert({
         player_id: player.id,
@@ -44,7 +45,7 @@ export default defineEventHandler(async (event) => {
       })
 
       const messageForAdmin = `
-📱 Svar från ${player.name} (${phoneNumber}):
+📱 Svar från ${playerFullName(player)} (${phoneNumber}):
 "${text}"
 
 🤖 AI-förslag: "${aiResult.response}"
@@ -65,12 +66,12 @@ ${aiResult.shouldCreateUnavailability ? '⚠️ Vill skapa ledighet!' : ''}
           ai_parsed: true,
         })
 
-        await sendToAdmin(`✅ Lade till ledighet för ${player.name}: ${startDate} - ${endDate}`)
+        await sendToAdmin(`✅ Lade till ledighet för ${playerFullName(player)}: ${startDate} - ${endDate}`)
       }
 
     } catch (error) {
       console.error('AI analysis failed:', error)
-      await sendToAdmin(`❌ AI-analys misslyckades för ${player.name}: ${text}`)
+      await sendToAdmin(`❌ AI-analys misslyckades för ${playerFullName(player)}: ${text}`)
     }
   }
 

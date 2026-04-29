@@ -20,8 +20,8 @@ app.use('/api/admin/players', eventHandler(async (event) => {
 
 app.use('/api/admin/players', eventHandler(async (event) => {
   const body = await readBody(event)
-  const { phone, name, elo } = body
-  const { data: player } = await supabase.from('players').insert({ phone, name, elo }).select().single()
+  const { phone, first_name, last_name, elo } = body
+  const { data: player } = await supabase.from('players').insert({ phone, first_name, last_name, elo }).select().single()
   return { player }
 }))
 

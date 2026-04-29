@@ -3,10 +3,10 @@ import type { Player } from '~/types/database'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { phone, name, elo } = body
+  const { phone, first_name, last_name, elo } = body
 
-  if (!name) {
-    throw createError({ statusCode: 400, message: 'name is required' })
+  if (!first_name) {
+    throw createError({ statusCode: 400, message: 'first_name is required' })
   }
 
   if (phone) {
@@ -27,7 +27,8 @@ export default defineEventHandler(async (event) => {
     .from('players')
     .insert({
       phone: phone || null,
-      name,
+      first_name,
+      last_name: last_name || null,
       elo: elo || null,
     })
     .select()

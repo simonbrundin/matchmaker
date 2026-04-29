@@ -3,6 +3,7 @@ import { getSMSClient } from '~/server/lib/sms-gateway'
 import { sendToAdmin } from '~/server/lib/telegram'
 import { analyzeIncomingMessage } from '~/server/lib/ai'
 import { getBookingService } from '~/server/lib/booking'
+import { playerFullName } from '~/utils'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -46,7 +47,7 @@ export default defineEventHandler(async (event) => {
       if (pendingBookings.length === 1) {
         targetBookingId = pendingBookings[0].id
       } else if (pendingBookings.length > 1) {
-        await sendToAdmin(`⚠️ ${player.name} har ${pendingBookings.length} aktiva inbjudningar. Kan inte koppla svar automatiskt.`)
+        await sendToAdmin(`⚠️ ${playerFullName(player)} har ${pendingBookings.length} aktiva inbjudningar. Kan inte koppla svar automatiskt.`)
         targetBookingId = null
       }
     }
@@ -88,7 +89,7 @@ export default defineEventHandler(async (event) => {
           .eq('id', targetBookingId)
 
         if (response === 'ja') {
-          await sendToAdmin(`✅ ${player.name} bekräftade som värd för ${booking.scheduled_date} ${booking.scheduled_time}!`)
+          await sendToAdmin(`✅ ${playerFullName(player)} bekräftade som värd för ${booking.scheduled_date} ${booking.scheduled_time}!`)
           
           await supabase.from('messages').insert({
             booking_id: targetBookingId,
@@ -99,7 +100,7 @@ export default defineEventHandler(async (event) => {
 
           return { success: true, type: 'host_confirmed' }
         } else {
-          await sendToAdmin(`❌ ${player.name} kunde inte som värd för ${booking.scheduled_date}`)
+          await sendToAdmin(`❌ ${playerFullName(player)} kunde inte som värd för ${booking.scheduled_date}`)
           
           await supabase.from('messages').insert({
             booking_id: targetBookingId,
@@ -218,7 +219,7 @@ ${aiResult.shouldCreateUnavailability ? '⚠️ Vill skapa ledighet!' : ''}
       })
 
       try {
-        const aiResult = await analyzeIncomingMessage(text, player.name)
+const aiResult = await analyzeIncomingMessage(text, playerFullName(player))
         
         await supabase.from('ai_response_suggestions').insert({
           player_id: player.id,
@@ -227,8 +228,8 @@ ${aiResult.shouldCreateUnavailability ? '⚠️ Vill skapa ledighet!' : ''}
           ai_confidence: aiResult.confidence,
         })
 
-        const messageForAdmin = `
-📱 Svar från ${player.name} (${phoneNumber}):
+const messageForAdmin = `
+📱 Svar från ${playerFullName(player)} (${phoneNumber}):
 "${text}"
 
 🤖 AI-förslag: "${aiResult.response}"
@@ -249,12 +250,12 @@ ${aiResult.shouldCreateUnavailability ? '⚠️ Vill skapa ledighet!' : ''}
             ai_parsed: true,
           })
 
-          await sendToAdmin(`✅ Lade till ledighet för ${player.name}: ${startDate} - ${endDate}`)
+await sendToAdmin(`✅ Lade till ledighet för ${playerFullName(player)}: ${startDate} - ${endDate}`)
         }
 
       } catch (error) {
         console.error('AI analysis failed:', error)
-        await sendToAdmin(`❌ AI-analys misslyckades för ${player.name}: ${text}`)
+        await sendToAdmin(`❌ AI-analys misslyckades för ${playerFullName(player)}: ${text}`)
       }
     }
 

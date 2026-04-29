@@ -1,7 +1,8 @@
 export interface Player {
   id: string
   phone: string
-  name: string
+  first_name: string
+  last_name: string | null
   elo: number
   is_active: boolean
   created_at: string
