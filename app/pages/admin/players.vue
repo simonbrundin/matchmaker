@@ -43,6 +43,12 @@
         <template #actions-cell="{ row }">
           <div class="flex gap-2">
             <UButton
+              label="Redigera"
+              variant="outline"
+              size="xs"
+              @click="openEditModal(row)"
+            />
+            <UButton
               :icon="row.is_active ? 'i-lucide-user-x' : 'i-lucide-user-check'"
               variant="ghost"
               size="xs"
@@ -64,21 +70,48 @@
     </UCard>
 
     <UModal v-model="showAddModal" title="Lägg till spelare">
-      <div class="p-4 space-y-4">
-        <UFormField label="Namn">
-          <UInput v-model="newPlayer.name" placeholder="Förnamn Efternamn" />
-        </UFormField>
-        <UFormField label="Telefon">
-          <UInput v-model="newPlayer.phone" placeholder="+46701234567" />
-        </UFormField>
-        <UFormField label="ELO">
-          <UInput v-model.number="newPlayer.elo" type="number" placeholder="1200" />
-        </UFormField>
-      </div>
+      <UButton label="Lägg till spelare" icon="i-lucide-plus" />
+
+      <template #content>
+        <div class="p-4 space-y-4">
+          <UFormField label="Namn">
+            <UInput v-model="newPlayer.name" placeholder="Förnamn Efternamn" />
+          </UFormField>
+          <UFormField label="Telefon">
+            <UInput v-model="newPlayer.phone" placeholder="+46701234567" />
+          </UFormField>
+          <UFormField label="ELO">
+            <UInput v-model.number="newPlayer.elo" type="number" placeholder="1200" />
+          </UFormField>
+        </div>
+      </template>
 
       <template #footer>
         <UButton label="Avbryt" variant="outline" @click="showAddModal = false" />
         <UButton label="Lägg till" color="primary" @click="addPlayer" />
+      </template>
+    </UModal>
+
+    <UModal v-model="showEditModal" title="Redigera spelare">
+      <UButton label="Redigera" variant="outline" size="xs" />
+
+      <template #content>
+        <div class="p-4 space-y-4">
+          <UFormField label="Namn">
+            <UInput v-model="editData.name" placeholder="Förnamn Efternamn" />
+          </UFormField>
+          <UFormField label="Telefon">
+            <UInput v-model="editData.phone" placeholder="+46701234567" />
+          </UFormField>
+          <UFormField label="ELO">
+            <UInput v-model.number="editData.elo" type="number" placeholder="1200" />
+          </UFormField>
+        </div>
+      </template>
+
+      <template #footer>
+        <UButton label="Avbryt" variant="outline" @click="showEditModal = false" />
+        <UButton label="Spara" color="primary" @click="saveEdit" />
       </template>
     </UModal>
   </div>
@@ -97,7 +130,9 @@ interface Player {
 const players = ref<Player[]>([])
 const search = ref('')
 const showAddModal = ref(false)
+const showEditModal = ref(false)
 const newPlayer = ref({ name: '', phone: '', elo: 1200 })
+const editData = reactive({ id: '', name: '', phone: '', elo: 1200 })
 
 const columns = [
   { key: 'name', accessorKey: 'name', label: 'Namn' },
@@ -112,9 +147,9 @@ let searchTimeout: NodeJS.Timeout
 
 async function loadPlayers() {
   const query = search.value ? `?search=${search.value}` : ''
-  const { data } = await useFetch(`/api/admin/players${query}`)
-  if (data.value?.players) {
-    players.value = data.value.players as Player[]
+  const result = await $fetch<{ players: Player[] }>(`/api/admin/players${query}`)
+  if (result?.players) {
+    players.value = result.players
   }
 }
 
@@ -124,7 +159,7 @@ function debouncedSearch() {
 }
 
 async function addPlayer() {
-  await useFetch('/api/admin/players', {
+  await $fetch('/api/admin/players', {
     method: 'POST',
     body: newPlayer.value
   })
@@ -133,17 +168,45 @@ async function addPlayer() {
   loadPlayers()
 }
 
-async function toggleActive(player: Player) {
-  await useFetch(`/api/admin/players/${player.id}`, {
+async function toggleActive(row: any) {
+  const player = row.original || row
+  const id = player.id || row.id
+  const isActive = player.is_active ?? row.is_active
+  await $fetch(`/api/admin/players/${id}`, {
     method: 'PUT',
-    body: { is_active: !player.is_active }
+    body: { is_active: !isActive }
   })
   loadPlayers()
 }
 
-async function deletePlayer(player: Player) {
-  if (!confirm(`Ta bort ${player.name}?`)) return
-  await useFetch(`/api/admin/players/${player.id}`, { method: 'DELETE' })
+async function deletePlayer(row: any) {
+  const player = row.original || row
+  const name = player.name || row.name
+  const id = player.id || row.id
+  if (!confirm(`Ta bort ${name}?`)) return
+  await $fetch(`/api/admin/players/${id}`, { method: 'DELETE' })
+  loadPlayers()
+}
+
+function editPlayer(row: any) {
+  const player = row.original || row
+  editData.id = String(player.id)
+  editData.name = String(player.name || '')
+  editData.phone = String(player.phone || '')
+  editData.elo = Number(player.elo ?? 1200)
+  showEditModal.value = true
+}
+
+function openEditModal(row: any) {
+  editPlayer(row)
+}
+
+async function saveEdit() {
+  await $fetch(`/api/admin/players/${editData.id}`, {
+    method: 'PUT',
+    body: { name: editData.name, phone: editData.phone, elo: editData.elo }
+  })
+  showEditModal.value = false
   loadPlayers()
 }
 
