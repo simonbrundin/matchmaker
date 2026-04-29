@@ -32,8 +32,7 @@
         <template #actions-cell="{ row }">
           <div class="flex gap-2">
             <UButton label="Redigera" variant="outline" size="xs" @click="openEditModal(row)" />
-
-            <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="deletePlayer(row)" />
+            <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="openDeleteModal(row)" />
           </div>
         </template>
       </UTable>
@@ -86,6 +85,8 @@
         <UButton label="Spara" color="primary" type="button" @click="saveEdit" />
       </template>
     </UModal>
+
+    <PlayersDeleteModal ref="deleteModal" :player="deleteData" @deleted="loadPlayers" />
   </div>
 </template>
 
@@ -103,6 +104,8 @@ const players = ref<Player[]>([])
 const search = ref('')
 const showAddModal = ref(false)
 const showEditModal = ref(false)
+const deleteModal = ref()
+const deleteData = ref<{ id: string; name: string }>()
 const newPlayer = ref({ name: '', phone: '', elo: 1200 })
 const editData = reactive({ id: '', name: '', phone: '', elo: 1200, is_active: true })
 
@@ -140,13 +143,10 @@ async function addPlayer() {
   loadPlayers()
 }
 
-async function deletePlayer(row: any) {
+function openDeleteModal(row: any) {
   const player = row.original || row
-  const name = player.name || row.name
-  const id = player.id || row.id
-  if (!confirm(`Ta bort ${name}?`)) return
-  await $fetch(`/api/admin/players/${id}`, { method: 'DELETE' })
-  loadPlayers()
+  deleteData.value = { id: player.id, name: player.name }
+  deleteModal.value?.openModal(deleteData.value)
 }
 
 function editPlayer(row: any) {
