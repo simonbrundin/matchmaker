@@ -9,6 +9,7 @@
               <NuxtLink to="/admin" class="px-3 py-2 rounded-md text-sm font-medium" :class="$route.path === '/admin' ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900'">Dashboard</NuxtLink>
               <NuxtLink to="/admin/players" class="px-3 py-2 rounded-md text-sm font-medium" :class="$route.path.startsWith('/admin/players') ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900'">Spelare</NuxtLink>
               <NuxtLink to="/admin/bookings" class="px-3 py-2 rounded-md text-sm font-medium" :class="$route.path.startsWith('/admin/bookings') ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900'">Bokningar</NuxtLink>
+              <NuxtLink to="/admin/messages" class="px-3 py-2 rounded-md text-sm font-medium" :class="$route.path.startsWith('/admin/messages') ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900'">Meddelanden</NuxtLink>
             </div>
           </div>
         </div>

@@ -24,6 +24,20 @@ const links = [[{
   onSelect: () => {
     open.value = false
   }
+}, {
+  label: 'Meddelanden',
+  icon: 'i-lucide-message-circle',
+  to: '/admin/messages',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
+  label: 'Återkommande tider',
+  icon: 'i-lucide-repeat',
+  to: '/admin/weekly-times',
+  onSelect: () => {
+    open.value = false
+  }
 }]] satisfies NavigationMenuItem[][]
 
 const groups = computed(() => [{
