@@ -5,6 +5,10 @@
       <p class="text-muted">Spelare med stående tider</p>
     </div>
 
+    <div class="flex justify-end mb-4">
+      <WeeklyTimesAddScheduleModal ref="addModal" @created="loadData" />
+    </div>
+
     <div v-if="summary" class="grid grid-cols-4 gap-4 mb-6">
       <UCard>
         <div class="text-center">
@@ -49,12 +53,11 @@ interface Summary {
   timesPerWeek: number
 }
 
-import { h } from 'vue'
-
 const columns = [
   { id: 'player_name', header: 'Spelare', accessorKey: 'player_name' },
   { id: 'type', header: 'Typ', accessorKey: 'type' },
   { id: 'schedule', header: 'Schema', accessorKey: 'schedule' },
+  { id: 'parity', header: 'Paritet', accessorKey: 'parity' },
   { id: 'time_display', header: 'Tid', accessorKey: 'time_display' },
   { id: 'start_date', header: 'Start', accessorKey: 'start_date' },
   { id: 'is_active', header: 'Status', accessorKey: 'is_active', cell: ({ row }: any) => row.is_active ? 'Aktiv' : 'Inaktiv' }
@@ -70,13 +73,20 @@ const dayNames: Record<number, string> = {
   7: 'Söndag'
 }
 
+const parityNames: Record<string, string> = {
+  all: 'Alla',
+  odd: 'Udda',
+  even: 'Jämna'
+}
+
 function formatWeekday(weekday: number | null): string {
   if (!weekday) return '-'
   return dayNames[weekday] || `Dag ${weekday}`
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('sv-SE')
+function formatParity(parity: string | null): string {
+  if (!parity) return '-'
+  return parityNames[parity] || parity
 }
 
 const key = ref(0)
@@ -97,9 +107,10 @@ async function loadData() {
       player_phone: s.player?.phone || '',
       time_display: s.time?.substring(0, 5) || '',
       type: s.interval_days ? 'Intervall' : 'Veckobaserad',
-      schedule: s.interval_days 
+      schedule: s.interval_days
         ? `Var ${s.interval_days}:e dag`
-        : formatWeekday(s.weekday)
+        : formatWeekday(s.weekday),
+      parity: s.interval_days ? '-' : formatParity(s.week_parity)
     }))
   }
   if (data?.summary) {
@@ -109,5 +120,4 @@ async function loadData() {
 }
 
 onMounted(loadData)
-
 </script>

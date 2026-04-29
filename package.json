@@ -19,7 +19,8 @@
     "nuxt": "^4.4.2",
     "openai": "^6.34.0",
     "vue": "^3.5.33",
-    "vue-router": "^5.0.6"
+    "vue-router": "^5.0.6",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^12.8.2",
