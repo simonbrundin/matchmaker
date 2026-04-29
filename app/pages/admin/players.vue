@@ -69,11 +69,9 @@
       </div>
     </UCard>
 
-    <UModal v-model="showAddModal" title="Lägg till spelare">
-      <UButton label="Lägg till spelare" icon="i-lucide-plus" />
-
-      <template #content>
-        <div class="p-4 space-y-4">
+    <UModal v-model:open="showAddModal" title="Lägg till spelare">
+      <template #body>
+        <div class="space-y-4">
           <UFormField label="Namn">
             <UInput v-model="newPlayer.name" placeholder="Förnamn Efternamn" />
           </UFormField>
@@ -92,11 +90,9 @@
       </template>
     </UModal>
 
-    <UModal v-model="showEditModal" title="Redigera spelare">
-      <UButton label="Redigera" variant="outline" size="xs" />
-
-      <template #content>
-        <div class="p-4 space-y-4">
+    <UModal v-model:open="showEditModal" title="Redigera spelare">
+      <template #body>
+        <div class="space-y-4">
           <UFormField label="Namn">
             <UInput v-model="editData.name" placeholder="Förnamn Efternamn" />
           </UFormField>
