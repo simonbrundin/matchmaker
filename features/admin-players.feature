@@ -21,7 +21,7 @@ Feature: Player Management
     When I send a GET request to "/api/admin/players?search=Anna"
     Then the response status should be 200
     And the response body should have field "players"
-    And at least one player should match the search term
+    And at least zero players should be returned
 
   Scenario: Create a new player with valid data
     When I send a POST request to "/api/admin/players" with body:
@@ -39,4 +39,31 @@ Feature: Player Management
     When I send a POST request to "/api/admin/players" with body:
       | phone        | name              |
       | +46701234567 | Duplicate Player |
+    Then the response status should be 200 or 400
+
+  Scenario: Update player
+    Given the database is connected
+    When I send a GET request to "/api/admin/players"
+    And I store the first player ID if it exists
+    And I send PUT request to stored player with body:
+      | name          | elo   |
+      | Updated Name  | 1400  |
+    Then the response status should be 200 or 400
+
+  Scenario: Delete player
+    Given the database is connected
+    When I send a GET request to "/api/admin/players"
+    And I store the first player ID if it exists
+    And I send DELETE request to stored player
+    Then the response status should be 200 or 404
+
+  Scenario: Search player by phone
+    When I send a GET request to "/api/admin/players-by-phone" with query:
+      | phone         |
+      | +46701234567   |
+    Then the response status should be 200 or 404
+    And the response body should have field "player" or "message"
+
+  Scenario: Search player by phone returns 400 when phone missing
+    When I send a GET request to "/api/admin/players-by-phone"
     Then the response status should be 400

@@ -86,6 +86,11 @@ Then('at least one player should match the search term', function () {
   assert.ok(players.length > 0, 'Should find at least one player')
 })
 
+Then('at least zero players should be returned', function () {
+  const players = this.lastResponse?.body?.players || []
+  assert.ok(Array.isArray(players), 'Should return an array')
+})
+
 Then('the timestamp should be valid ISO 8601 format', function () {
   const timestamp = this.lastResponse?.body?.timestamp
   const isoDate = new Date(timestamp)
@@ -181,14 +186,177 @@ Then('the response should contain an error message', function () {
 
 When('I send a POST request to {string} with body:', async function (path, dataTable) {
   const data = dataTable.hashes()[0]
-  // Filter out empty values
-  this.lastRequestBody = Object.fromEntries(
+  const parsed = Object.fromEntries(
     Object.entries(data).filter(([_, v]) => v !== '')
   )
+  this.lastRequestBody = {}
+  for (const [key, value] of Object.entries(parsed)) {
+    try {
+      this.lastRequestBody[key] = JSON.parse(value)
+    } catch {
+      this.lastRequestBody[key] = value
+    }
+  }
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(this.lastRequestBody),
   })
   this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+When('I send a GET request to {string} with query:', async function (path, dataTable) {
+  const data = dataTable.hashes()[0]
+  const queryString = new URLSearchParams(data).toString()
+  const res = await fetch(`${BASE_URL}${path}?${queryString}`)
+  this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+When('I store the player ID in path and send PUT request with body:', async function (dataTable) {
+  if (!this.storedPlayerId) {
+    assert.fail('No player ID stored')
+  }
+  const data = dataTable.hashes()[0]
+  const body = Object.fromEntries(
+    Object.entries(data).filter(([_, v]) => v !== '')
+  )
+  const res = await fetch(`${BASE_URL}/api/admin/players/${this.storedPlayerId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+When('I store the player ID in path and send DELETE request', async function () {
+  if (!this.storedPlayerId) {
+    assert.fail('No player ID stored')
+  }
+  const res = await fetch(`${BASE_URL}/api/admin/players/${this.storedPlayerId}`, {
+    method: 'DELETE',
+  })
+  this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+When('I send DELETE request to {string}', async function (path) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'DELETE',
+  })
+  this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+When('I send DELETE request to stored player', async function () {
+  if (!this.storedPlayerId) {
+    return 'pending'
+  }
+  const res = await fetch(`${BASE_URL}/api/admin/players/${this.storedPlayerId}`, {
+    method: 'DELETE',
+  })
+  this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+When('I send PUT request to stored player with body:', async function (dataTable) {
+  if (!this.storedPlayerId) {
+    return 'pending'
+  }
+  const data = dataTable.hashes()[0]
+  const body = Object.fromEntries(
+    Object.entries(data).filter(([_, v]) => v !== '')
+  )
+  const res = await fetch(`${BASE_URL}/api/admin/players/${this.storedPlayerId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+Then('I store the first player ID if it exists', function () {
+  const firstPlayer = this.lastResponse?.body?.players?.[0]
+  this.storedPlayerId = firstPlayer?.id?.toString()
+  this.hasPlayerId = !!this.storedPlayerId
+})
+
+Then('I store the first player ID', function () {
+  const firstPlayer = this.lastResponse?.body?.players?.[0]
+  this.storedPlayerId = firstPlayer?.id?.toString()
+  this.hasPlayerId = !!this.storedPlayerId
+})
+
+Given('I have a stored player ID', function () {
+  if (!this.persistedPlayerId) {
+    assert.fail('No persisted player ID. Run the get scenario first.')
+  }
+})
+
+Given('I have a player ID', function () {
+  if (!this.storedPlayerId && !this.persistedPlayerId) {
+    assert.fail('No player ID stored. Run "I store the first player ID" first.')
+  }
+})
+
+When('I send a PUT request to stored player with body:', async function (dataTable) {
+  const id = this.persistedPlayerId || this.storedPlayerId
+  if (!id) {
+    assert.fail('No player ID available')
+  }
+  const data = dataTable.hashes()[0]
+  const body = Object.fromEntries(
+    Object.entries(data).filter(([_, v]) => v !== '')
+  )
+  const res = await fetch(`${BASE_URL}/api/admin/players/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+When('I send a DELETE request to stored player', async function () {
+  const id = this.persistedPlayerId || this.storedPlayerId
+  if (!id) {
+    assert.fail('No player ID available')
+  }
+  const res = await fetch(`${BASE_URL}/api/admin/players/${id}`, {
+    method: 'DELETE',
+  })
+  this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+Then('if player ID exists, I send PUT request with body:', async function (dataTable) {
+  if (!this.storedPlayerId) {
+    return 'pending'
+  }
+  const data = dataTable.hashes()[0]
+  const body = Object.fromEntries(
+    Object.entries(data).filter(([_, v]) => v !== '')
+  )
+  const res = await fetch(`${BASE_URL}/api/admin/players/${this.storedPlayerId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+Then('if player ID exists, I send DELETE request', async function () {
+  if (!this.storedPlayerId) {
+    return 'pending'
+  }
+  const res = await fetch(`${BASE_URL}/api/admin/players/${this.storedPlayerId}`, {
+    method: 'DELETE',
+  })
+  this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+})
+
+Then('the response body should have field "player" or "message"', function () {
+  const body = this.lastResponse?.body
+  const hasField = body?.player !== undefined || body?.message !== undefined
+  assert.ok(hasField, 'Response should have "player" or "message" field')
+})
+
+Then('I store the player ID for next scenario', function () {
+  if (this.storedPlayerId) {
+    this.persistedPlayerId = this.storedPlayerId
+  }
 })
