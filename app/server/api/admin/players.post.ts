@@ -5,8 +5,20 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { phone, name, elo } = body
 
-  if (!phone || !name) {
-    throw createError({ statusCode: 400, message: 'phone and name required' })
+  if (!name) {
+    throw createError({ statusCode: 400, message: 'name is required' })
+  }
+
+  if (phone) {
+    const { data: existing } = await getSupabaseAdmin()
+      .from('players')
+      .select('id')
+      .eq('phone', phone)
+      .single()
+
+    if (existing) {
+      throw createError({ statusCode: 400, message: 'phone already in use' })
+    }
   }
 
   const supabase = getSupabaseAdmin()
@@ -14,9 +26,9 @@ export default defineEventHandler(async (event) => {
   const { data: player, error } = await supabase
     .from('players')
     .insert({
-      phone,
+      phone: phone || null,
       name,
-      elo: elo || 1200,
+      elo: elo || null,
     })
     .select()
     .single()

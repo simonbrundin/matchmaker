@@ -9,20 +9,10 @@
     </div>
 
     <div class="mb-4">
-      <UInput
-        v-model="search"
-        @update:model-value="debouncedSearch"
-        placeholder="Sök på namn eller telefon..."
-        icon="i-lucide-search"
-      >
+      <UInput v-model="search" @update:model-value="debouncedSearch" placeholder="Sök på namn eller telefon..."
+        icon="i-lucide-search">
         <template #trailing>
-          <UButton
-            v-if="search"
-            icon="i-lucide-x"
-            variant="ghost"
-            size="xs"
-            @click="search = ''; loadPlayers()"
-          />
+          <UButton v-if="search" icon="i-lucide-x" variant="ghost" size="xs" @click="search = ''; loadPlayers()" />
         </template>
       </UInput>
     </div>
@@ -30,37 +20,21 @@
     <UCard>
       <UTable :data="players" :columns="columns">
         <template #elo-cell="{ row }">
-          <UBadge color="primary" variant="subtle">{{ row.elo }}</UBadge>
+          {{ row.original.elo }}
         </template>
         <template #is_active-cell="{ row }">
-          <UBadge :color="row.is_active ? 'green' : 'red'" variant="subtle">
-            {{ row.is_active ? 'Aktiv' : 'Inaktiv' }}
-          </UBadge>
+          <span class="inline-block w-3 h-3 rounded-full"
+            :class="row.original.is_active ? 'bg-green-500' : 'bg-red-500'" />
         </template>
         <template #total_matches_played-cell="{ row }">
-          {{ row.total_matches_played || 0 }}
+          {{ row.original.total_matches_played || 0 }}
         </template>
         <template #actions-cell="{ row }">
           <div class="flex gap-2">
-            <UButton
-              label="Redigera"
-              variant="outline"
-              size="xs"
-              @click="openEditModal(row)"
-            />
-            <UButton
-              :icon="row.is_active ? 'i-lucide-user-x' : 'i-lucide-user-check'"
-              variant="ghost"
-              size="xs"
-              @click="toggleActive(row)"
-            />
-            <UButton
-              icon="i-lucide-trash-2"
-              variant="ghost"
-              color="error"
-              size="xs"
-              @click="deletePlayer(row)"
-            />
+            <UButton label="Redigera" variant="outline" size="xs" @click="openEditModal(row)" />
+            <UButton :icon="row.original.is_active ? 'i-lucide-user-x' : 'i-lucide-user-check'" variant="ghost"
+              size="xs" @click="toggleActive(row)" />
+            <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="deletePlayer(row)" />
           </div>
         </template>
       </UTable>
@@ -79,7 +53,7 @@
             <UInput v-model="newPlayer.phone" placeholder="+46701234567" />
           </UFormField>
           <UFormField label="ELO">
-            <UInput v-model.number="newPlayer.elo" type="number" placeholder="1200" />
+            <UInput v-model="newPlayer.elo" type="number" placeholder="1200" />
           </UFormField>
         </div>
       </template>
@@ -100,14 +74,17 @@
             <UInput v-model="editData.phone" placeholder="+46701234567" />
           </UFormField>
           <UFormField label="ELO">
-            <UInput v-model.number="editData.elo" type="number" placeholder="1200" />
+            <UInput v-model="editData.elo" type="number" placeholder="1200" />
+          </UFormField>
+          <UFormField label="Aktiv">
+            <USwitch v-model="editData.is_active" @click.stop />
           </UFormField>
         </div>
       </template>
 
       <template #footer>
-        <UButton label="Avbryt" variant="outline" @click="showEditModal = false" />
-        <UButton label="Spara" color="primary" @click="saveEdit" />
+        <UButton label="Avbryt" variant="outline" type="button" @click="showEditModal = false" />
+        <UButton label="Spara" color="primary" type="button" @click="saveEdit" />
       </template>
     </UModal>
   </div>
@@ -128,7 +105,7 @@ const search = ref('')
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const newPlayer = ref({ name: '', phone: '', elo: 1200 })
-const editData = reactive({ id: '', name: '', phone: '', elo: 1200 })
+const editData = reactive({ id: '', name: '', phone: '', elo: 1200, is_active: true })
 
 const columns = [
   { key: 'name', accessorKey: 'name', label: 'Namn' },
@@ -188,8 +165,9 @@ function editPlayer(row: any) {
   const player = row.original || row
   editData.id = String(player.id)
   editData.name = String(player.name || '')
-  editData.phone = String(player.phone || '')
-  editData.elo = Number(player.elo ?? 1200)
+  editData.phone = player.phone != null ? String(player.phone) : ''
+  editData.elo = player.elo != null ? Number(player.elo) : ''
+  editData.is_active = Boolean(player.is_active)
   showEditModal.value = true
 }
 
@@ -198,12 +176,24 @@ function openEditModal(row: any) {
 }
 
 async function saveEdit() {
-  await $fetch(`/api/admin/players/${editData.id}`, {
-    method: 'PUT',
-    body: { name: editData.name, phone: editData.phone, elo: editData.elo }
-  })
-  showEditModal.value = false
-  loadPlayers()
+  try {
+    const payload: any = {
+      name: editData.name,
+      phone: editData.phone || null,
+      elo: editData.elo === '' ? null : editData.elo,
+      is_active: editData.is_active
+    }
+    const result = await $fetch(`/api/admin/players/${editData.id}`, {
+      method: 'PUT',
+      body: payload
+    })
+    showEditModal.value = false
+    loadPlayers()
+  } catch (err: any) {
+    console.error('Failed to save:', err)
+    const message = err?.data?.message || err?.message || 'Okänt fel'
+    alert('Kunde inte spara: ' + message)
+  }
 }
 
 onMounted(loadPlayers)
