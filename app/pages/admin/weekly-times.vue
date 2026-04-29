@@ -37,11 +37,21 @@
     </div>
 
     <UCard>
-      <UTable :key="key" :data="schedules" :columns="columns" :row-key="(row: any) => row.id" />
+      <UTable :key="key" :data="schedules" :columns="columns" :row-key="(row: any) => row.id">
+        <template #actions-cell="{ row }">
+          <div class="flex gap-2">
+            <UButton label="Redigera" variant="outline" size="xs" @click="openEditModal(row)" />
+            <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="openDeleteModal(row)" />
+          </div>
+        </template>
+      </UTable>
       <div v-if="schedules.length === 0" class="text-center py-8 text-muted">
         Inga återkommande tider hittades
       </div>
     </UCard>
+
+    <WeeklyTimesEditScheduleModal ref="editModal" @updated="loadData" />
+    <WeeklyTimesDeleteScheduleModal ref="deleteModal" :schedule="selectedSchedule" @deleted="loadData" />
   </div>
 </template>
 
@@ -60,7 +70,8 @@ const columns = [
   { id: 'parity', header: 'Paritet', accessorKey: 'parity' },
   { id: 'time_display', header: 'Tid', accessorKey: 'time_display' },
   { id: 'start_date', header: 'Start', accessorKey: 'start_date' },
-  { id: 'is_active', header: 'Status', accessorKey: 'is_active', cell: ({ row }: any) => row.is_active ? 'Aktiv' : 'Inaktiv' }
+  { id: 'is_active', header: 'Status', accessorKey: 'is_active', cell: ({ row }: any) => row.is_active ? 'Aktiv' : 'Inaktiv' },
+  { id: 'actions', header: '', accessorKey: 'actions' }
 ]
 
 const dayNames: Record<number, string> = {
@@ -92,12 +103,17 @@ function formatParity(parity: string | null): string {
 const key = ref(0)
 const schedules = ref<any[]>([])
 const summary = ref<Summary | null>(null)
+const addModal = ref<any>(null)
+const editModal = ref<any>(null)
+const deleteModal = ref<any>(null)
+const selectedSchedule = ref<any>(null)
 
 async function loadData() {
   const data: any = await $fetch('/api/admin/weekly-times')
   if (data?.schedules) {
     schedules.value = data.schedules.map((s: any) => ({
       id: s.id,
+      player_id: s.player?.id || '',
       weekday: s.weekday,
       week_parity: s.week_parity,
       interval_days: s.interval_days,
@@ -120,4 +136,30 @@ async function loadData() {
 }
 
 onMounted(loadData)
+
+function openEditModal(row: any) {
+  const schedule = row.original || row
+  editModal.value?.openModal({
+    id: schedule.id,
+    player_id: schedule.player_id || '',
+    player_name: schedule.player_name || '',
+    time: schedule.time_display || '18:00',
+    weekday: schedule.weekday || null,
+    week_parity: schedule.week_parity || 'all',
+    interval_days: schedule.interval_days || null,
+    start_date: schedule.start_date || null,
+    is_active: schedule.is_active === 'Aktiv'
+  })
+}
+
+function openDeleteModal(row: any) {
+  const schedule = row.original || row
+  selectedSchedule.value = {
+    id: schedule.id,
+    player_name: schedule.player_name || '',
+    schedule: schedule.schedule || '',
+    time_display: schedule.time_display || ''
+  }
+  deleteModal.value?.openModal(selectedSchedule.value)
+}
 </script>
