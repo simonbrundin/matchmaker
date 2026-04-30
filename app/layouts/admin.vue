@@ -30,6 +30,7 @@ const filteredNav = computed(() => {
               <NuxtLink to="/admin/players" class="px-3 py-2 rounded-md text-sm font-medium" :class="$route.path.startsWith('/admin/players') ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900'">Spelare</NuxtLink>
               <NuxtLink to="/admin/bookings" class="px-3 py-2 rounded-md text-sm font-medium" :class="$route.path.startsWith('/admin/bookings') ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900'">Bokningar</NuxtLink>
               <NuxtLink to="/admin/messages" class="px-3 py-2 rounded-md text-sm font-medium" :class="$route.path.startsWith('/admin/messages') ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900'">Meddelanden</NuxtLink>
+              <NuxtLink to="/admin/telegram-test" class="px-3 py-2 rounded-md text-sm font-medium" :class="$route.path.startsWith('/admin/telegram-test') ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900'">Telegram</NuxtLink>
 
               <UDropdown :items="[{ label: 'Dokumentation', children: filteredNav }]" :popper="{ placement: 'bottom-start' }">
                 <NuxtLink to="/admin/dokumentation/meddelandeflode" class="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1" :class="isDokumentationActive ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900'">
