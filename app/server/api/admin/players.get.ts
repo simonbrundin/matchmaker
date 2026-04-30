@@ -14,7 +14,13 @@ export default defineEventHandler(async (event) => {
     queryBuilder = queryBuilder.or(`first_name.ilike.*${query.search}*,last_name.ilike.*${query.search}*,phone.ilike.*${query.search}*`)
   }
 
-  const { data: players, error } = await queryBuilder.order('last_name').order('first_name')
+  const sortableColumns = ['first_name', 'last_name', 'phone', 'elo', 'is_active', 'total_matches_played']
+  const sortColumn = sortableColumns.includes(query.sort as string) ? query.sort as string : 'last_name'
+  const sortDirection = query.direction === 'asc'
+
+  const { data: players, error } = await queryBuilder
+    .order(sortColumn, { ascending: sortDirection })
+    .order('first_name', { ascending: true })
 
   if (error) {
     throw createError({ statusCode: 500, message: error.message })

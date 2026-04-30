@@ -18,21 +18,7 @@
     </div>
 
     <UCard>
-      <UTable :data="players" :columns="columns">
-        <template #name-cell="{ row }">
-          {{ getPlayerName(row.original) }}
-        </template>
-        <template #elo-cell="{ row }">
-          {{ row.original.elo }}
-        </template>
-<template #is_active-cell="{ row }">
-          <UBadge :color="row.original.is_active ? 'success' : 'error'" variant="subtle" size="xs">
-            {{ row.original.is_active ? 'Aktiv' : 'Inaktiv' }}
-          </UBadge>
-        </template>
-        <template #total_matches_played-cell="{ row }">
-          {{ row.original.total_matches_played || 0 }}
-        </template>
+      <UTable v-model:sorting="sorting" :data="players" :columns="columns">
         <template #actions-cell="{ row }">
           <div class="flex gap-2">
             <UButton label="Redigera" variant="outline" size="xs" @click="openEditModal(row)" />
@@ -101,6 +87,8 @@
 </template>
 
 <script setup lang="ts">
+import { h, resolveComponent } from 'vue'
+import type { ColumnDef } from '@tanstack/vue-table'
 import { playerFullName } from '~/utils'
 
 interface Player {
@@ -115,6 +103,7 @@ interface Player {
 
 const players = ref<Player[]>([])
 const search = ref('')
+const sorting = ref<{ id: string; desc: boolean }[]>([])
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const deleteModal = ref()
@@ -122,24 +111,109 @@ const deleteData = ref<{ id: string; name: string }>()
 const newPlayer = ref({ first_name: '', last_name: '', phone: '', elo: 1200 })
 const editData = reactive({ id: '', first_name: '', last_name: '', phone: '', elo: 1200, is_active: true })
 
-const columns = [
-  { key: 'name', accessorKey: 'name', header: 'Namn' },
-  { key: 'phone', accessorKey: 'phone', header: 'Telefon' },
-  { key: 'elo', accessorKey: 'elo', header: 'ELO' },
-  { key: 'is_active', accessorKey: 'is_active', header: 'Status' },
-  { key: 'total_matches_played', accessorKey: 'total_matches_played', header: 'Matcher' },
-  { key: 'actions', accessorKey: 'actions', header: '' }
+const columns: ColumnDef<Player>[] = [
+  {
+    accessorFn: (row: Player) => playerFullName(row),
+    id: 'name',
+    enableSorting: true,
+    header: ({ column }) => h(resolveComponent('UButton'), {
+      variant: 'ghost',
+      onClick: () => { column.toggleSorting() },
+      label: 'Namn',
+      trailingIcon: column.getIsSorted() === 'asc'
+        ? 'i-lucide-arrow-up'
+        : column.getIsSorted() === 'desc'
+          ? 'i-lucide-arrow-down'
+          : 'i-lucide-arrow-up-down'
+    }),
+    cell: ({ row }) => playerFullName(row.original)
+  },
+  {
+    accessorKey: 'phone',
+    enableSorting: true,
+    header: ({ column }) => h(resolveComponent('UButton'), {
+      variant: 'ghost',
+      onClick: () => column.toggleSorting(),
+      label: 'Telefon',
+      trailingIcon: column.getIsSorted() === 'asc'
+        ? 'i-lucide-arrow-up'
+        : column.getIsSorted() === 'desc'
+          ? 'i-lucide-arrow-down'
+          : 'i-lucide-arrow-up-down'
+    })
+  },
+  {
+    accessorKey: 'elo',
+    enableSorting: true,
+    header: ({ column }) => h(resolveComponent('UButton'), {
+      variant: 'ghost',
+      onClick: () => column.toggleSorting(),
+      label: 'ELO',
+      trailingIcon: column.getIsSorted() === 'asc'
+        ? 'i-lucide-arrow-up'
+        : column.getIsSorted() === 'desc'
+          ? 'i-lucide-arrow-down'
+          : 'i-lucide-arrow-up-down'
+    })
+  },
+  {
+    accessorKey: 'is_active',
+    enableSorting: true,
+    header: ({ column }) => h(resolveComponent('UButton'), {
+      variant: 'ghost',
+      onClick: () => column.toggleSorting(),
+      label: 'Status',
+      trailingIcon: column.getIsSorted() === 'asc'
+        ? 'i-lucide-arrow-up'
+        : column.getIsSorted() === 'desc'
+          ? 'i-lucide-arrow-down'
+          : 'i-lucide-arrow-up-down'
+    }),
+    cell: ({ row }) => h(resolveComponent('UBadge'), {
+      color: row.original.is_active ? 'success' : 'error',
+      variant: 'subtle',
+      size: 'xs'
+    }, () => row.original.is_active ? 'Aktiv' : 'Inaktiv')
+  },
+  {
+    accessorKey: 'total_matches_played',
+    enableSorting: true,
+    header: ({ column }) => h(resolveComponent('UButton'), {
+      variant: 'ghost',
+      onClick: () => column.toggleSorting(),
+      label: 'Matcher',
+      trailingIcon: column.getIsSorted() === 'asc'
+        ? 'i-lucide-arrow-up'
+        : column.getIsSorted() === 'desc'
+          ? 'i-lucide-arrow-down'
+          : 'i-lucide-arrow-up-down'
+    }),
+    cell: ({ row }) => row.original.total_matches_played || 0
+  },
+  {
+    accessorKey: 'actions',
+    header: ''
+  }
 ]
 
 let searchTimeout: NodeJS.Timeout
 
-function getPlayerName(player: Player): string {
-  return playerFullName(player)
-}
-
 async function loadPlayers() {
-  const query = search.value ? `?search=${search.value}` : ''
-  const result = await $fetch<{ players: Player[] }>(`/api/admin/players${query}`)
+  const params = new URLSearchParams()
+  if (search.value) params.set('search', search.value)
+  if (sorting.value.length > 0) {
+    const s = sorting.value[0]
+    const keyToColumn: Record<string, string> = {
+      name: 'last_name',
+      phone: 'phone',
+      elo: 'elo',
+      is_active: 'is_active',
+      total_matches_played: 'total_matches_played'
+    }
+    params.set('sort', keyToColumn[s.id] || 'last_name')
+    params.set('direction', s.desc ? 'desc' : 'asc')
+  }
+  const result = await $fetch<{ players: Player[] }>(`/api/admin/players?${params.toString()}`)
   if (result?.players) {
     players.value = result.players
   }
@@ -209,4 +283,8 @@ async function saveEdit() {
 }
 
 onMounted(loadPlayers)
+
+watch(sorting, () => {
+  loadPlayers()
+}, { deep: true })
 </script>
