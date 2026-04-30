@@ -6,38 +6,27 @@ const open = ref(false)
 const links = [[{
   label: 'Dashboard',
   icon: 'i-lucide-layout-dashboard',
-  to: '/admin',
-  onSelect: () => {
-    open.value = false
-  }
+  to: '/admin'
 }, {
   label: 'Spelare',
   icon: 'i-lucide-users',
-  to: '/admin/players',
-  onSelect: () => {
-    open.value = false
-  }
+  to: '/admin/players'
 }, {
   label: 'Bokningar',
   icon: 'i-lucide-calendar',
-  to: '/admin/bookings',
-  onSelect: () => {
-    open.value = false
-  }
+  to: '/admin/bookings'
 }, {
   label: 'Meddelanden',
   icon: 'i-lucide-message-circle',
-  to: '/admin/messages',
-  onSelect: () => {
-    open.value = false
-  }
+  to: '/admin/messages'
 }, {
   label: 'Återkommande tider',
   icon: 'i-lucide-repeat',
-  to: '/admin/weekly-times',
-  onSelect: () => {
-    open.value = false
-  }
+  to: '/admin/weekly-times'
+}, {
+  label: 'Dokumentation',
+  icon: 'i-lucide-book-open',
+  to: '/admin/dokumentation'
 }]] satisfies NavigationMenuItem[][]
 
 const groups = computed(() => [{
@@ -73,8 +62,6 @@ const groups = computed(() => [{
           :collapsed="collapsed"
           :items="links[0]"
           orientation="vertical"
-          tooltip
-          popover
         />
       </template>
 
