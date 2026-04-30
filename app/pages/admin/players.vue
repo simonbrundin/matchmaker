@@ -25,9 +25,10 @@
         <template #elo-cell="{ row }">
           {{ row.original.elo }}
         </template>
-        <template #is_active-cell="{ row }">
-          <span class="inline-block w-3 h-3 rounded-full"
-            :class="row.original.is_active ? 'bg-green-500' : 'bg-red-500'" />
+<template #is_active-cell="{ row }">
+          <UBadge :color="row.original.is_active ? 'success' : 'error'" variant="subtle" size="xs">
+            {{ row.original.is_active ? 'Aktiv' : 'Inaktiv' }}
+          </UBadge>
         </template>
         <template #total_matches_played-cell="{ row }">
           {{ row.original.total_matches_played || 0 }}

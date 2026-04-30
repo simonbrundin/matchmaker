@@ -14,10 +14,13 @@
           {{ row.original?.scheduled_time ?? row.scheduled_time }}
         </template>
         <template #fill-cell="{ row }">
-          <span class="inline-flex items-center justify-center w-12 h-8 rounded-full text-sm font-bold"
-            :class="fillBgClass((row.original ?? row).fill_status)">
+          <UBadge
+            :color="fillStatusColor((row.original ?? row).fill_status)"
+            variant="subtle"
+            size="md"
+          >
             {{ (row.original ?? row).confirmed_count }}/4
-          </span>
+          </UBadge>
         </template>
         <template #invites-cell="{ row }">
           <span v-if="(row.original ?? row).invited_rounds">
@@ -26,22 +29,23 @@
           <span v-else class="text-muted">-</span>
         </template>
         <template #players-cell="{ row }">
-          <div class="flex flex-col gap-1">
-            <div v-for="(pm, playerId) in (row.original ?? row).player_messages" :key="playerId"
-              class="flex items-center gap-2">
-              <UBadge v-if="pm.status === 'confirmed'" :color="playerStatusColor(pm.status)" variant="subtle" size="xs">
-                {{ pm.player ? playerFullName(pm.player) : 'Okänd' }}
-              </UBadge>
-            </div>
+          <div class="flex flex-wrap gap-1">
+            <UBadge
+              v-for="pm in Object.values((row.original ?? row).player_messages).filter((pm: any) => pm.status === 'confirmed')"
+              :key="pm.player?.id ?? Math.random()"
+              color="success"
+              variant="subtle"
+              size="md"
+            >
+              {{ pm.player ? playerFullName(pm.player) : 'Okänd' }}
+            </UBadge>
           </div>
         </template>
         <template #message_count-cell="{ row }">
-          <UBadge color="blue" variant="soft" size="sm">
-            {{ (row.original ?? row).message_count }} meddelanden
-          </UBadge>
+          {{ (row.original ?? row).message_count }}
         </template>
         <template #actions-cell="{ row }">
-          <UButton icon="i-lucide-eye" variant="ghost" size="xs" @click="viewMessages(row.original ?? row)" />
+          <UButton icon="i-lucide-eye" variant="ghost" size="md" @click="viewMessages(row.original ?? row)" />
         </template>
       </UTable>
       <div v-if="bookings.length === 0" class="text-center py-8 text-muted">
@@ -63,7 +67,7 @@
             </div>
             <div>
               <div class="text-muted">Status</div>
-              <UBadge :color="ballStatus(selectedBooking!).color" size="xs">
+              <UBadge :color="ballStatus(selectedBooking!).color" size="md">
                 {{ ballStatus(selectedBooking!).label }}
               </UBadge>
             </div>
@@ -72,17 +76,19 @@
           <div class="border-t border-default my-4"></div>
 
           <div class="space-y-4">
-            <div v-for="(pm, playerId) in selectedBooking.player_messages" :key="playerId" class="border rounded-lg p-4">
+            <div v-for="(pm, playerId) in selectedBooking.player_messages" :key="playerId"
+              class="border rounded-lg p-4">
               <div class="flex items-center justify-between mb-3">
                 <div class="font-medium">{{ pm.player ? playerFullName(pm.player) : 'Okänd' }}</div>
               </div>
 
               <div class="space-y-3">
                 <div v-for="msg in pm.messages" :key="msg.id" class="flex gap-3">
-                  <div class="flex-1 p-3 rounded-lg text-gray-900" :class="msg.direction === 'outgoing' ? 'bg-blue-200' : 'bg-green-200'">
+                  <div class="flex-1 p-3 rounded-2xl text-900"
+                    :class="msg.direction === 'outgoing' ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'">
                     <div class="flex items-center gap-2 mb-1">
                       <UIcon :name="msg.direction === 'outgoing' ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'"
-                        class="w-4 h-4" :class="msg.direction === 'outgoing' ? 'text-blue-500' : 'text-green-500'" />
+                        class="w-4 h-4" :class="msg.direction === 'outgoing' ? 'text-blue-200' : 'text-green-200'" />
                       <span class="text-xs text-muted">
                         {{ msg.direction === 'outgoing' ? 'Skickat' : 'Svar' }}
                       </span>
@@ -205,13 +211,13 @@ function playerStatusColor(status: string) {
   return colors[status] || 'gray'
 }
 
-function fillBgClass(status: string) {
-  const classes: Record<string, string> = {
-    green: 'bg-green-500 text-white font-bold',
-    yellow: 'bg-yellow-500 text-black font-bold',
-    red: 'bg-red-600 text-white font-bold'
+function fillStatusColor(status: string) {
+  const colors: Record<string, string> = {
+    green: 'success',
+    yellow: 'warning',
+    red: 'error'
   }
-  return classes[status] || 'bg-gray-500 text-white'
+  return colors[status] || 'neutral'
 }
 
 onMounted(loadBookings)
