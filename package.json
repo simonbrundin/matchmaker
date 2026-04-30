@@ -12,8 +12,10 @@
     "test:report": "cucumber-js --format html:report.html"
   },
   "dependencies": {
+    "@nuxt/content": "^3.13.0",
     "@nuxt/ui": "^4.7.0",
     "@nuxtjs/supabase": "^2.0.6",
+    "better-sqlite3": "^12.9.0",
     "grammy": "^1.42.0",
     "node-cron": "^4.2.1",
     "nuxt": "^4.4.2",
