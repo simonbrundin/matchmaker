@@ -8,15 +8,23 @@
     <UCard>
       <UTable :data="bookings" :columns="columns">
         <template #scheduled_date-cell="{ row }">
-          {{ formatDate(row.scheduled_date) }}
+          {{ formatDate(row.original?.scheduled_date ?? row.scheduled_date) }}
         </template>
         <template #scheduled_time-cell="{ row }">
-          {{ row.scheduled_time }}
+          {{ row.original?.scheduled_time ?? row.scheduled_time }}
+        </template>
+        <template #fill-cell="{ row }">
+          <span
+            class="inline-flex items-center justify-center w-12 h-8 rounded-full text-sm font-bold"
+            :class="fillBgClass((row.original ?? row).fill_status)"
+          >
+            {{ (row.original ?? row).confirmed_count }}/4
+          </span>
         </template>
         <template #players-cell="{ row }">
           <div class="flex flex-col gap-1">
             <div
-              v-for="(pm, playerId) in row.player_messages"
+              v-for="(pm, playerId) in (row.original ?? row).player_messages"
               :key="playerId"
               class="flex items-center gap-2"
             >
@@ -31,11 +39,11 @@
         </template>
         <template #message_count-cell="{ row }">
           <UBadge color="blue" variant="soft" size="sm">
-            {{ row.message_count }} meddelanden
+            {{ (row.original ?? row).message_count }} meddelanden
           </UBadge>
         </template>
         <template #actions-cell="{ row }">
-          <UButton icon="i-lucide-eye" variant="ghost" size="xs" @click="viewMessages(row)" />
+          <UButton icon="i-lucide-eye" variant="ghost" size="xs" @click="viewMessages(row.original ?? row)" />
         </template>
       </UTable>
       <div v-if="bookings.length === 0" class="text-center py-8 text-muted">
@@ -62,7 +70,7 @@
           </div>
         </div>
 
-        <UDivider />
+        <div class="border-t border-default my-4"></div>
 
         <div class="space-y-4">
           <div
@@ -146,6 +154,8 @@ interface Booking {
   host_player_id: string
   player_messages: Record<string, PlayerMessages>
   message_count: number
+  confirmed_count: number
+  fill_status: 'green' | 'yellow' | 'red'
 }
 
 const bookings = ref<Booking[]>([])
@@ -154,6 +164,7 @@ const selectedBooking = ref<Booking | null>(null)
 const columns = [
   { id: 'scheduled_date', key: 'scheduled_date', label: 'Datum' },
   { id: 'scheduled_time', key: 'scheduled_time', label: 'Tid' },
+  { id: 'fill', key: 'fill', label: 'Fyllning' },
   { id: 'players', key: 'players', label: 'Spelare' },
   { id: 'message_count', key: 'message_count', label: 'Antal' },
   { id: 'actions', key: 'actions', label: '' }
@@ -166,8 +177,8 @@ async function loadBookings() {
   }
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('sv-SE')
+function formatDate(dateStr: string | undefined): string {
+  return dateStr || ''
 }
 
 function formatDateTime(dateStr: string): string {
@@ -198,6 +209,15 @@ function playerStatusColor(status: string) {
     waitlist: 'gray'
   }
   return colors[status] || 'gray'
+}
+
+function fillBgClass(status: string) {
+  const classes: Record<string, string> = {
+    green: 'bg-green-500 text-white font-bold',
+    yellow: 'bg-yellow-500 text-black font-bold',
+    red: 'bg-red-600 text-white font-bold'
+  }
+  return classes[status] || 'bg-gray-500 text-white'
 }
 
 function viewMessages(booking: Booking) {

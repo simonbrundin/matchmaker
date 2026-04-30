@@ -8,20 +8,20 @@
     <UCard>
       <UTable :data="bookings" :columns="columns">
         <template #scheduled_date-cell="{ row }">
-          {{ formatDate(row.scheduled_date) }}
+          {{ formatDate(row.original?.scheduled_date ?? row.scheduled_date) }}
         </template>
         <template #status-cell="{ row }">
-          <UBadge :color="statusColor(row.status)" variant="subtle">
-            {{ row.status }}
+          <UBadge :color="statusColor(row.original?.status ?? row.status)" variant="subtle">
+            {{ row.original?.status ?? row.status }}
           </UBadge>
         </template>
         <template #host-cell="{ row }">
-          {{ getHostName(row) }}
+          {{ getHostName(row.original ?? row) }}
         </template>
         <template #players-cell="{ row }">
-          <div v-if="row.booked_players" class="flex flex-wrap gap-1">
+          <div v-if="(row.original ?? row).booked_players" class="flex flex-wrap gap-1">
             <UBadge
-              v-for="bp in row.booked_players"
+              v-for="bp in (row.original ?? row).booked_players"
               :key="bp.id"
               :color="playerStatusColor(bp.status)"
               variant="subtle"
@@ -64,7 +64,7 @@
           </div>
         </div>
 
-        <UDivider />
+        <div class="border-t border-default my-4"></div>
 
         <div>
           <div class="text-sm font-medium mb-2">Spelare</div>
@@ -125,12 +125,13 @@ async function loadBookings() {
 }
 
 function getHostName(booking: Booking): string {
-  const host = booking.booked_players?.find(bp => bp.player_id === booking.host_player_id)
+  if (!booking.booked_players || booking.booked_players.length === 0) return 'Okänd'
+  const host = booking.booked_players[0]
   return host?.player ? playerFullName(host.player) : 'Okänd'
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('sv-SE')
+  return dateStr || ''
 }
 
 function statusColor(status: string) {
