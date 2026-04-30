@@ -1,5 +1,12 @@
 import { getSupabaseAdmin } from '~/server/lib/supabase'
 
+const PLAYER_DAYS_AHEAD = 4
+const PLAYER_CONTACT_TIMES = ['08:00', '12:30', '17:00']
+
+function calculateMaxRounds(scheduledDate: string): number {
+  return PLAYER_DAYS_AHEAD * PLAYER_CONTACT_TIMES.length
+}
+
 export default defineEventHandler(async () => {
   const supabase = getSupabaseAdmin()
 
@@ -61,10 +68,22 @@ export default defineEventHandler(async () => {
   const enrichedBookings = bookings?.map(booking => {
     const playerMessages: Record<string, any> = {}
     let confirmedCount = 0
+    let maxInviteRound = 0
 
     booking.booked_players?.forEach((bp: any) => {
       if (bp.status === 'confirmed') confirmedCount++
       const messages = messagesByBookingAndPlayer[booking.id]?.[bp.player_id] || []
+      
+      messages.forEach((msg: any) => {
+        if (msg.direction === 'outgoing') {
+          // If invite_round exists, use it; otherwise count as round 1 if there are any outgoing messages
+          const round = msg.invite_round || 1
+          if (round > maxInviteRound) {
+            maxInviteRound = round
+          }
+        }
+      })
+
       if (messages.length > 0) {
         playerMessages[bp.player_id] = {
           player: bp.player,
@@ -77,6 +96,7 @@ export default defineEventHandler(async () => {
       }
     })
 
+    const maxRounds = calculateMaxRounds(booking.scheduled_date)
     const fillStatus = confirmedCount >= 4 ? 'green' : booking.status === 'pending' ? 'yellow' : 'red'
 
     return {
@@ -84,7 +104,9 @@ export default defineEventHandler(async () => {
       player_messages: playerMessages,
       message_count: Object.values(playerMessages).reduce((sum: number, pm: any) => sum + pm.messages.length, 0),
       confirmed_count: confirmedCount,
-      fill_status: fillStatus
+      fill_status: fillStatus,
+      invited_rounds: maxInviteRound,
+      max_rounds: maxRounds
     }
   }).filter((b: any) => b.message_count > 0)
 

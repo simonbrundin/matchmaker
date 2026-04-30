@@ -4,6 +4,7 @@ import { getSMSClient } from '../lib/sms-gateway'
 import { generateInviteMessage } from '../lib/ai'
 import { getSupabaseAdmin } from '../lib/supabase'
 import { sendToAdmin } from '../lib/telegram'
+import { HOST_DAYS_AHEAD, HOST_CONTACT_TIMES, PLAYER_DAYS_AHEAD, PLAYER_CONTACT_TIMES } from '../lib/config'
 
 let bookingService: any = null
 let smsClient: any = null
@@ -15,9 +16,6 @@ function getServices() {
   if (!supabase) supabase = getSupabaseAdmin()
   return { bookingService, smsClient, supabase }
 }
-
-const HOST_DAYS_AHEAD = 5
-const PLAYER_DAYS_AHEAD = 4
 
 function getSwedishDate(dateStr: string): string {
   const date = new Date(dateStr)

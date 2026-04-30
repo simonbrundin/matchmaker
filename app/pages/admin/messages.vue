@@ -14,20 +14,21 @@
           {{ row.original?.scheduled_time ?? row.scheduled_time }}
         </template>
         <template #fill-cell="{ row }">
-          <span
-            class="inline-flex items-center justify-center w-12 h-8 rounded-full text-sm font-bold"
-            :class="fillBgClass((row.original ?? row).fill_status)"
-          >
+          <span class="inline-flex items-center justify-center w-12 h-8 rounded-full text-sm font-bold"
+            :class="fillBgClass((row.original ?? row).fill_status)">
             {{ (row.original ?? row).confirmed_count }}/4
           </span>
         </template>
+        <template #invites-cell="{ row }">
+          <span v-if="(row.original ?? row).invited_rounds">
+            {{ (row.original ?? row).invited_rounds }}/{{ (row.original ?? row).max_rounds }}
+          </span>
+          <span v-else class="text-muted">-</span>
+        </template>
         <template #players-cell="{ row }">
           <div class="flex flex-col gap-1">
-            <div
-              v-for="(pm, playerId) in (row.original ?? row).player_messages"
-              :key="playerId"
-              class="flex items-center gap-2"
-            >
+            <div v-for="(pm, playerId) in (row.original ?? row).player_messages" :key="playerId"
+              class="flex items-center gap-2">
               <UBadge :color="playerStatusColor(pm.status)" variant="subtle" size="xs">
                 {{ pm.player ? playerFullName(pm.player) : 'Okänd' }}
               </UBadge>
@@ -73,11 +74,7 @@
         <div class="border-t border-default my-4"></div>
 
         <div class="space-y-4">
-          <div
-            v-for="(pm, playerId) in selectedBooking.player_messages"
-            :key="playerId"
-            class="border rounded-lg p-4"
-          >
+          <div v-for="(pm, playerId) in selectedBooking.player_messages" :key="playerId" class="border rounded-lg p-4">
             <div class="flex items-center justify-between mb-3">
               <div class="font-medium">{{ pm.player ? playerFullName(pm.player) : 'Okänd' }}</div>
               <div class="flex items-center gap-2">
@@ -87,21 +84,11 @@
             </div>
 
             <div class="space-y-3">
-              <div
-                v-for="msg in pm.messages"
-                :key="msg.id"
-                class="flex gap-3"
-              >
-                <div
-                  class="flex-1 p-3 rounded-lg"
-                  :class="msg.direction === 'outgoing' ? 'bg-blue-50' : 'bg-green-50'"
-                >
+              <div v-for="msg in pm.messages" :key="msg.id" class="flex gap-3">
+                <div class="flex-1 p-3 rounded-lg" :class="msg.direction === 'outgoing' ? 'bg-blue-50' : 'bg-green-50'">
                   <div class="flex items-center gap-2 mb-1">
-                    <UIcon
-                      :name="msg.direction === 'outgoing' ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'"
-                      class="w-4 h-4"
-                      :class="msg.direction === 'outgoing' ? 'text-blue-500' : 'text-green-500'"
-                    />
+                    <UIcon :name="msg.direction === 'outgoing' ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'"
+                      class="w-4 h-4" :class="msg.direction === 'outgoing' ? 'text-blue-500' : 'text-green-500'" />
                     <span class="text-xs text-muted">
                       {{ msg.direction === 'outgoing' ? 'Skickat' : 'Svar' }}
                     </span>
@@ -156,18 +143,21 @@ interface Booking {
   message_count: number
   confirmed_count: number
   fill_status: 'green' | 'yellow' | 'red'
+  invited_rounds: number
+  max_rounds: number
 }
 
 const bookings = ref<Booking[]>([])
 const selectedBooking = ref<Booking | null>(null)
 
 const columns = [
-  { id: 'scheduled_date', key: 'scheduled_date', label: 'Datum' },
-  { id: 'scheduled_time', key: 'scheduled_time', label: 'Tid' },
-  { id: 'fill', key: 'fill', label: 'Fyllning' },
-  { id: 'players', key: 'players', label: 'Spelare' },
-  { id: 'message_count', key: 'message_count', label: 'Antal' },
-  { id: 'actions', key: 'actions', label: '' }
+  { key: 'scheduled_date', accessorKey: 'scheduled_date', header: 'Datum' },
+  { key: 'scheduled_time', accessorKey: 'scheduled_time', header: 'Tid' },
+  { key: 'fill', accessorKey: 'fill', header: 'Platser' },
+  { key: 'invites', accessorKey: 'invites', header: 'Inbjudningar' },
+  { key: 'players', accessorKey: 'players', header: 'Spelare' },
+  { key: 'message_count', accessorKey: 'message_count', header: 'Antal' },
+  { key: 'actions', accessorKey: 'actions', header: 'Åtgärder' }
 ]
 
 async function loadBookings() {
