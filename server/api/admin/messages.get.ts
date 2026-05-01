@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from '~/server/lib/supabase'
+import { getSupabaseAdmin } from '~~/server/lib/supabase'
 
 const PLAYER_DAYS_AHEAD = 4
 const PLAYER_CONTACT_TIMES = ['08:00', '12:30', '17:00']

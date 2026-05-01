@@ -1,19 +1,56 @@
 import { getSupabaseAdmin } from './supabase'
+import { getSMSClient } from './sms-gateway'
 import type {
   Player,
   Booking,
+  BookingBase,
   BookedPlayer,
   WeeklyTime,
   Unavailability,
   InviteCandidate,
 } from '~/types/database'
 
+const CONFIRMATION_MESSAGE = `🎉 Padel imorgon kl {time} är bekräftad! {count}/4 spelare klara. Välkommen!`
+
 export class BookingService {
-  private supabase = getSupabaseAdmin()
+  private supabase: any = null
+
+  private getSupabase() {
+    if (!this.supabase) {
+      this.supabase = getSupabaseAdmin()
+    }
+    return this.supabase
+  }
+
+  async notifyAllPlayers(booking: Booking): Promise<void> {
+    const smsClient = getSMSClient()
+    
+    const { data: bookedPlayers } = await this.getSupabase()
+      .from('booked_players')
+      .select('*, player:players(*)')
+      .eq('booking_id', booking.id)
+      .eq('status', 'confirmed')
+
+    if (!bookedPlayers || bookedPlayers.length < 4) return
+
+    const message = CONFIRMATION_MESSAGE
+      .replace('{time}', booking.scheduled_time)
+      .replace('{count}', bookedPlayers.length.toString())
+
+    for (const bp of bookedPlayers) {
+      if (bp.player?.phone) {
+        try {
+          await smsClient.sendMessage(bp.player.phone, message)
+        } catch (error) {
+          console.error(`Failed to notify player:`, error)
+        }
+      }
+    }
+  }
 
   async getWeeklyTimesForDate(date: string): Promise<WeeklyTime[]> {
     const dayOfWeek = new Date(date).getDay()
-    const { data, error } = await this.supabase
+    const { data, error } = await this.getSupabase()
       .from('weekly_times')
       .select('*')
       .eq('is_active', true)
@@ -27,7 +64,7 @@ export class BookingService {
     playerId: string,
     date: string
   ): Promise<boolean> {
-    const { data: unavailabilities } = await this.supabase
+    const { data: unavailabilities } = await this.getSupabase()
       .from('unavailabilities')
       .select('*')
       .eq('player_id', playerId)
@@ -43,7 +80,7 @@ export class BookingService {
     date: string,
     time: string
   ): Promise<InviteCandidate[]> {
-    const { data: players, error } = await this.supabase
+    const { data: players, error } = await this.getSupabase()
       .from('players')
       .select('*')
       .eq('is_active', true)
@@ -59,7 +96,7 @@ export class BookingService {
       const isAvailable = await this.getPlayerAvailability(player.id, date)
       if (!isAvailable) continue
 
-      const { data: lastMessage } = await this.supabase
+      const { data: lastMessage } = await this.getSupabase()
         .from('messages')
         .select('sent_at')
         .eq('player_id', player.id)
@@ -67,7 +104,7 @@ export class BookingService {
         .limit(1)
         .single()
 
-      const { data: friends } = await this.supabase
+      const { data: friends } = await this.getSupabase()
         .from('friends')
         .select('*')
         .eq('friend_id', player.id)
@@ -104,7 +141,7 @@ export class BookingService {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    const { data: recentMessages } = await this.supabase
+    const { data: recentMessages } = await this.getSupabase()
       .from('messages')
       .select('response')
       .eq('player_id', player.id)
@@ -128,19 +165,23 @@ export class BookingService {
     date: string,
     time: string
   ): Promise<Booking> {
-    const { data: booking, error } = await this.supabase
+    const { data: booking, error } = await this.getSupabase()
       .from('bookings')
       .insert({
         scheduled_date: date,
         scheduled_time: time,
         status: 'pending',
+        host_confirmed: false,
+        host_player_id: hostPlayerId,
       })
       .select()
       .single()
 
     if (error) throw error
 
-    const { error: hostError } = await this.supabase
+    return booking
+
+    const { error: hostError } = await this.getSupabase()
       .from('booked_players')
       .insert({
         booking_id: booking.id,
@@ -159,7 +200,7 @@ export class BookingService {
     playerId: string,
     inviteNumber: number
   ): Promise<BookedPlayer> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.getSupabase()
       .from('booked_players')
       .insert({
         booking_id: bookingId,
@@ -172,7 +213,7 @@ export class BookingService {
 
     if (error) throw error
 
-    await this.supabase
+    await this.getSupabase()
       .from('players')
       .update({ last_contacted_at: new Date().toISOString() })
       .eq('id', playerId)
@@ -184,7 +225,7 @@ export class BookingService {
     bookedPlayerId: string,
     response: 'ja' | 'nej' | 'kanske'
   ): Promise<void> {
-    const { data: bookedPlayer } = await this.supabase
+    const { data: bookedPlayer } = await this.getSupabase()
       .from('booked_players')
       .select('*')
       .eq('id', bookedPlayerId)
@@ -192,9 +233,17 @@ export class BookingService {
 
     if (!bookedPlayer) throw new Error('Booked player not found')
 
+    await this.updatePlayerResponseWithBooking(bookedPlayerId, response, bookedPlayer.booking_id)
+  }
+
+  async updatePlayerResponseWithBooking(
+    bookedPlayerId: string,
+    response: 'ja' | 'nej' | 'kanske',
+    bookingId: string
+  ): Promise<void> {
     const status = response === 'ja' ? 'confirmed' : response === 'nej' ? 'declined' : 'waitlist'
 
-    await this.supabase
+    await this.getSupabase()
       .from('booked_players')
       .update({
         response,
@@ -203,42 +252,48 @@ export class BookingService {
       })
       .eq('id', bookedPlayerId)
 
-    const { data: booking } = await this.supabase
+    const { data: booking } = await this.getSupabase()
       .from('bookings')
       .select('*')
-      .eq('id', bookedPlayer.booking_id)
+      .eq('id', bookingId)
       .single()
 
     if (!booking) return
 
-    const { data: confirmedPlayers } = await this.supabase
+    const { data: confirmedPlayers } = await this.getSupabase()
       .from('booked_players')
       .select('*')
       .eq('booking_id', booking.id)
       .eq('status', 'confirmed')
 
     if (confirmedPlayers && confirmedPlayers.length >= 4) {
-      await this.supabase
+      await this.getSupabase()
         .from('bookings')
         .update({ status: 'confirmed' })
         .eq('id', booking.id)
     }
   }
 
-  async getPendingInvites(bookingId: string): Promise<BookedPlayer[]> {
-    const { data, error } = await this.supabase
+  async getPlayerPendingBookings(playerId: string): Promise<Booking[]> {
+    const { data: bookedPlayers } = await this.getSupabase()
       .from('booked_players')
-      .select('*, player:players(*)')
-      .eq('booking_id', bookingId)
+      .select('booking_id, booking:bookings(*)')
+      .eq('player_id', playerId)
       .eq('status', 'invited')
-      .order('invite_number', { ascending: true })
 
-    if (error) throw error
-    return data || []
+    if (!bookedPlayers || bookedPlayers.length === 0) return []
+
+    const bookings: Booking[] = []
+    for (const bp of bookedPlayers) {
+      if (bp.booking?.status === 'pending') {
+        bookings.push(bp.booking as Booking)
+      }
+    }
+    return bookings
   }
 
   async getBookingWithPlayers(bookingId: string): Promise<Booking | null> {
-    const { data: booking, error } = await this.supabase
+    const { data: booking, error } = await this.getSupabase()
       .from('bookings')
       .select('*, booked_players(*, player:players(*))')
       .eq('id', bookingId)
@@ -246,6 +301,20 @@ export class BookingService {
 
     if (error) throw error
     return booking
+  }
+
+  async findBookingByShortRef(shortRef: string): Promise<Booking | null> {
+    const normalizedRef = shortRef.toUpperCase()
+    const { data: bookings, error } = await this.getSupabase()
+      .from('bookings')
+      .select('*')
+      .eq('status', 'pending')
+      .ilike('id', `%${normalizedRef}%`)
+      .limit(1)
+      .single()
+
+    if (error || !bookings) return null
+    return bookings
   }
 }
 

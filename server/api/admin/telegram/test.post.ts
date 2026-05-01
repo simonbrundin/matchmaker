@@ -1,4 +1,4 @@
-import { sendToAdmin } from '~/server/lib/telegram'
+import { sendToAdmin } from '~~/server/lib/telegram'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)

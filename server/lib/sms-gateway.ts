@@ -24,11 +24,12 @@ export class SMSGatewayClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    const auth = Buffer.from(this.apiKey).toString('base64')
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
+        'Authorization': `Basic ${auth}`,
         ...options.headers,
       },
     })
@@ -48,7 +49,7 @@ export class SMSGatewayClient {
       text: string
       status: string
       createdAt: string
-    }>('/3rdparty/v1/message', {
+    }>('/3rdparty/v1/messages', {
       method: 'POST',
       body: JSON.stringify({
         textMessage: { text },
@@ -81,7 +82,12 @@ let smsClient: SMSGatewayClient | null = null
 
 export function getSMSClient(): SMSGatewayClient {
   if (!smsClient) {
-    const config = useRuntimeConfig()
+    let config: any
+    try {
+      config = useRuntimeConfig()
+    } catch {
+      throw new Error('SMS Gateway: useRuntimeConfig only available in Nuxt context')
+    }
     if (!config.smsGatewayUrl || !config.smsGatewayApiKey) {
       throw new Error('SMS Gateway configuration missing')
     }

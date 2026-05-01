@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from '~/server/lib/supabase'
+import { getSupabaseAdmin } from '~~/server/lib/supabase'
 import type { Player } from '~/types/database'
 
 export default defineEventHandler(async (event) => {

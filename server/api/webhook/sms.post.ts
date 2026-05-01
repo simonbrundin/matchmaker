@@ -1,7 +1,7 @@
-import { getSupabaseAdmin } from '~/server/lib/supabase'
-import { getSMSClient } from '~/server/lib/sms-gateway'
-import { sendToAdmin } from '~/server/lib/telegram'
-import { analyzeIncomingMessage } from '~/server/lib/ai'
+import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { getSMSClient } from '~~/server/lib/sms-gateway'
+import { sendToAdmin } from '~~/server/lib/telegram'
+import { analyzeIncomingMessage } from '~~/server/lib/ai'
 import { playerFullName } from '~/utils'
 
 export default defineEventHandler(async (event) => {

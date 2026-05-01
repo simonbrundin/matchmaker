@@ -4,7 +4,12 @@ let supabaseAdmin: SupabaseClient | null = null
 
 export function getSupabaseAdmin(): SupabaseClient {
   if (!supabaseAdmin) {
-    const config = useRuntimeConfig()
+    let config: any
+    try {
+      config = useRuntimeConfig()
+    } catch {
+      throw new Error('Supabase: useRuntimeConfig only available in Nuxt context')
+    }
     if (!config.supabaseServiceKey || !config.public.supabaseUrl) {
       throw new Error('Supabase configuration missing')
     }

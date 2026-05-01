@@ -1,7 +1,7 @@
-import { getBookingService } from '~/server/lib/booking'
-import { getSMSClient } from '~/server/lib/sms-gateway'
-import { getSupabaseAdmin } from '~/server/lib/supabase'
-import { sendToAdmin } from '~/server/lib/telegram'
+import { getBookingService } from '~~/server/lib/booking'
+import { getSMSClient } from '~~/server/lib/sms-gateway'
+import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { sendToAdmin } from '~~/server/lib/telegram'
 
 export default defineEventHandler(async (event) => {
   const bookingService = getBookingService()

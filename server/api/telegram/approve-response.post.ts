@@ -1,5 +1,5 @@
-import { getSupabaseAdmin } from '~/server/lib/supabase'
-import { getSMSClient } from '~/server/lib/sms-gateway'
+import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { getSMSClient } from '~~/server/lib/sms-gateway'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
