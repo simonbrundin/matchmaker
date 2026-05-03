@@ -9,6 +9,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "cucumber-js",
+    "test:local": "TEST_SUPABASE_URL=http://localhost:5433 TEST_SUPABASE_SERVICE_KEY=postgres cucumber-js",
     "test:report": "cucumber-js --format html:report.html"
   },
   "dependencies": {
