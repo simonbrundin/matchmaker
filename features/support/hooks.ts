@@ -34,8 +34,15 @@ setWorldConstructor(CustomWorld)
 Before(async function () {
   this.lastResponse = null
   this.lastRequestBody = null
+  this.createdPlayerIds = []
 })
 
 After(async function () {
-  // Cleanup after each scenario
+  for (const id of this.createdPlayerIds || []) {
+    try {
+      await fetch(`${process.env.TEST_BASE_URL || 'http://localhost:3000'}/api/admin/players/${id}`, {
+        method: 'DELETE',
+      })
+    } catch {}
+  }
 })

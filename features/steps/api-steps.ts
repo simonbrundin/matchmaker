@@ -203,6 +203,18 @@ When('I send a POST request to {string} with body:', async function (path, dataT
     body: JSON.stringify(this.lastRequestBody),
   })
   this.lastResponse = { status: res.status, body: await res.json().catch(() => ({})) }
+  if (path === '/api/admin/players' && this.lastResponse?.body?.player?.id) {
+    this.createdPlayerIds = this.createdPlayerIds || []
+    this.createdPlayerIds.push(String(this.lastResponse.body.player.id as any))
+  }
+})
+
+Then('I store the player ID for cleanup', function () {
+  const player = this.lastResponse?.body?.player
+  if (player?.id) {
+    this.createdPlayerIds = this.createdPlayerIds || []
+    this.createdPlayerIds.push(player.id)
+  }
 })
 
 When('I send a GET request to {string} with query:', async function (path, dataTable) {
