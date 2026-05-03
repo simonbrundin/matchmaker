@@ -4,6 +4,16 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   const supabase = getSupabaseAdmin()
 
+  const { data: existing } = await supabase
+    .from('players')
+    .select('id')
+    .eq('id', id)
+    .single()
+
+  if (!existing) {
+    throw createError({ statusCode: 404, message: 'Player not found' })
+  }
+
   const { error } = await supabase
     .from('players')
     .delete()

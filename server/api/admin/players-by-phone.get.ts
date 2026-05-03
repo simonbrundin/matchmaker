@@ -12,12 +12,15 @@ export default defineEventHandler(async (event) => {
 
   const { data: player, error } = await supabase
     .from('players')
-    .select('id, name, phone, elo')
+    .select('id, first_name, last_name, phone, elo')
     .eq('phone', phone)
     .single()
 
   if (error) {
-    throw createError({ statusCode: 404, message: 'Player not found' })
+    if (error.code === 'PGRST116' || error.code === 'PGRST204') {
+      throw createError({ statusCode: 404, message: 'Player not found' })
+    }
+    throw createError({ statusCode: 400, message: error.message })
   }
 
   return { player }
