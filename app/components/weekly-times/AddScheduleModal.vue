@@ -30,10 +30,8 @@ const state = reactive<Partial<Schema>>({
   is_active: true
 })
 
-const players = ref<{ id: string; first_name: string; last_name: string | null; phone: string }[]>([])
-const playerSearch = ref('')
-const showDropdown = ref(false)
-const playerSearchInput = ref<any>(null)
+const selectedPlayer = ref<{ id: string; first_name: string; last_name: string | null; phone: string } | null>(null)
+const playerSelectRef = ref<any>(null)
 
 const dayNames: Record<number, string> = {
   1: 'Måndag',
@@ -56,78 +54,9 @@ const parityOptions = [
   { value: 'even', label: 'Jämna veckor' }
 ]
 
-const filteredPlayers = computed(() => {
-  const search = playerSearch.value.toLowerCase().trim()
-  if (!search) return players.value.slice(0, 10)
-  return players.value.filter(p =>
-    playerFullName(p).toLowerCase().includes(search) ||
-    (p.phone && p.phone.includes(search))
-  ).slice(0, 10)
+watch(selectedPlayer, (player) => {
+  state.player_id = player?.id || ''
 })
-
-const selectedPlayer = computed(() =>
-  players.value.find(p => p.id === state.player_id)
-)
-
-async function loadPlayers() {
-  try {
-    const data: any = await $fetch('/api/admin/players?active=true')
-    if (data?.players) {
-      players.value = data.players
-    }
-  } catch (err) {
-    console.error('loadPlayers error:', err)
-  }
-}
-
-watch(() => open.value, (isOpen) => {
-  if (isOpen && players.value.length === 0) {
-    loadPlayers()
-  }
-  if (isOpen) {
-    nextTick(() => {
-      const input = playerSearchInput.value
-      if (input) {
-        const el = input.$el?.querySelector?.('input') || input.$el || input
-        el?.focus?.()
-      }
-    })
-  }
-})
-
-let blurTimeout: ReturnType<typeof setTimeout> | null = null
-
-function onFocus() {
-  showDropdown.value = true
-}
-
-function onBlur() {
-  blurTimeout = setTimeout(() => {
-    showDropdown.value = false
-  }, 150)
-}
-
-function onInput(e: Event) {
-  if (!showDropdown.value) {
-    showDropdown.value = true
-  }
-}
-
-function selectPlayer(player: { id: string; first_name: string; last_name: string | null; phone: string }) {
-  if (blurTimeout) {
-    clearTimeout(blurTimeout)
-    blurTimeout = null
-  }
-  state.player_id = player.id
-  playerSearch.value = playerFullName(player)
-  nextTick(() => {
-    showDropdown.value = false
-  })
-}
-
-function closeDropdown() {
-  showDropdown.value = false
-}
 
 function openModal() {
   state.player_id = ''
@@ -138,8 +67,7 @@ function openModal() {
   state.interval_days = undefined
   state.start_date = new Date().toISOString().split('T')[0]
   state.is_active = true
-  playerSearch.value = ''
-  loadPlayers()
+  selectedPlayer.value = null
   open.value = true
 }
 
@@ -199,34 +127,11 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     <template #body>
       <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="Spelare" name="player_id" required>
-          <div class="relative">
-            <UInput
-              ref="playerSearchInput"
-              v-model="playerSearch"
-              placeholder="Sök spelare..."
-              class="w-full"
-              @focus="onFocus"
-              @blur="onBlur"
-              @input="onInput"
-            />
-            <div
-              v-if="showDropdown && filteredPlayers.length > 0"
-              class="absolute z-50 w-full mt-1 bg-white dark:bg-gray-900 border border-muted rounded-md shadow-lg max-h-60 overflow-auto"
-            >
-              <div
-                v-for="player in filteredPlayers"
-                :key="player.id"
-                class="px-3 py-2 hover:bg-muted cursor-pointer"
-                @mousedown.prevent="selectPlayer(player)"
-              >
-                <div class="font-medium">{{ playerFullName(player) }}</div>
-                <div class="text-sm text-muted">{{ player.phone || 'Inget nummer' }}</div>
-              </div>
-            </div>
-          </div>
-          <div v-if="selectedPlayer && !showDropdown" class="text-sm text-muted mt-1">
-            Vald: {{ playerFullName(selectedPlayer) }}
-          </div>
+          <PlayerSelect
+            ref="playerSelectRef"
+            v-model="selectedPlayer"
+            placeholder="Sök spelare..."
+          />
         </UFormField>
 
         <UFormField label="Tid" name="time" required>
