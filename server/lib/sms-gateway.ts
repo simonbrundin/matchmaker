@@ -8,23 +8,26 @@ export interface SMSMessage {
 
 export interface SMSGatewayConfig {
   url: string
-  apiKey: string
+  username: string
+  password: string
 }
 
 export class SMSGatewayClient {
   private baseUrl: string
-  private apiKey: string
+  private username: string
+  private password: string
 
   constructor(config: SMSGatewayConfig) {
     this.baseUrl = config.url.replace(/\/$/, '')
-    this.apiKey = config.apiKey
+    this.username = config.username
+    this.password = config.password
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const auth = Buffer.from(this.apiKey).toString('base64')
+    const auth = Buffer.from(`${this.username}:${this.password}`).toString('base64')
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
@@ -39,7 +42,11 @@ export class SMSGatewayClient {
       throw new Error(`SMS Gateway error: ${response.status} - ${error}`)
     }
 
-    return response.json()
+    try {
+      return await response.json() as T
+    } catch {
+      return {} as T
+    }
   }
 
   async sendMessage(phoneNumber: string, text: string): Promise<SMSMessage> {
@@ -71,10 +78,17 @@ export class SMSGatewayClient {
   }
 
   async listMessages(limit = 50): Promise<SMSMessage[]> {
-    const result = await this.request<{ messages: SMSMessage[] }>(
-      `/3rdparty/v1/messages?limit=${limit}`
-    )
-    return result.messages
+    try {
+      const result = await this.request<any>(
+        `/3rdparty/v1/messages?limit=${limit}`
+      )
+      if (!result) return []
+      if (Array.isArray(result)) return result
+      if (Array.isArray(result.messages)) return result.messages
+      return []
+    } catch {
+      return []
+    }
   }
 }
 
@@ -88,12 +102,13 @@ export function getSMSClient(): SMSGatewayClient {
     } catch {
       throw new Error('SMS Gateway: useRuntimeConfig only available in Nuxt context')
     }
-    if (!config.smsGatewayUrl || !config.smsGatewayApiKey) {
+    if (!config.smsGatewayUrl || !config.smsGatewayUsername || !config.smsGatewayPassword) {
       throw new Error('SMS Gateway configuration missing')
     }
     smsClient = new SMSGatewayClient({
       url: config.smsGatewayUrl as string,
-      apiKey: config.smsGatewayApiKey as string,
+      username: config.smsGatewayUsername as string,
+      password: config.smsGatewayPassword as string,
     })
   }
   return smsClient

@@ -24,6 +24,13 @@ const links = [[{
   icon: 'i-lucide-repeat',
   to: '/admin/weekly-times'
 }, {
+  label: 'Tester',
+  icon: 'i-lucide-flask-conical',
+  children: [
+    { label: 'SMS', to: '/admin/tester/sms-test', icon: 'i-lucide-message-square' },
+    { label: 'Telegram', to: '/admin/tester/telegram-test', icon: 'i-lucide-send' }
+  ]
+}, {
   label: 'Dokumentation',
   icon: 'i-lucide-book-open',
   to: '/admin/dokumentation'

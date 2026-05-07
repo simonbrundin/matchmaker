@@ -1,34 +1,41 @@
 export default defineNuxtConfig({
-  compatibilityDate: '2025-07-15',
+  compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
 
-  modules: ['@nuxtjs/supabase', '@nuxt/ui', '@nuxt/content'],
-  css: ['~/assets/css/main.css'],
+  modules: ["@nuxtjs/supabase", "@nuxt/ui", "@nuxt/content"],
+  css: ["~/assets/css/main.css"],
+
+  components: [
+    {
+      path: '~/components',
+      pathPrefix: false,
+    },
+  ],
 
   content: {
     build: {
       markdown: {
         highlight: {
           theme: {
-            default: 'github-light',
-            dark: 'github-dark'
+            default: "github-light",
+            dark: "github-dark",
           },
-          langs: ['typescript', 'javascript', 'sql', 'bash']
-        }
-      }
-    }
+          langs: ["typescript", "javascript", "sql", "bash"],
+        },
+      },
+    },
   },
 
   ui: {
     experimental: {
-      componentDetection: true
-    }
+      componentDetection: true,
+    },
   },
 
   supabase: {
     redirect: false,
     redirectOptions: {
-      exclude: ['/api/**'],
+      exclude: ["/api/**"],
     },
   },
 
@@ -39,16 +46,19 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY,
+    supabaseServiceKey:
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY,
     smsGatewayUrl: process.env.SMS_GATEWAY_URL,
-    smsGatewayApiKey: process.env.SMS_GATEWAY_API_KEY,
+    smsGatewayUsername: process.env.SMS_GATEWAY_USERNAME,
+    smsGatewayPassword: process.env.SMS_GATEWAY_PASSWORD,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     openaiApiKey: process.env.OPENAI_API_KEY,
     adminTelegramChatId: process.env.ADMIN_TELEGRAM_CHAT_ID,
-    
+
     public: {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseKey: process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY,
     },
   },
-})
+});
+
