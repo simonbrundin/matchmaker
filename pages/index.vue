@@ -9,7 +9,8 @@
       <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-xl font-semibold mb-4">Systemstatus</h2>
         <div v-if="health" class="space-y-2">
-          <p>Status: <span :class="health.status === 'ok' ? 'text-green-600' : 'text-red-600'">{{ health.status }}</span></p>
+          <p>Status: <span :class="health.status === 'ok' ? 'text-green-600' : 'text-red-600'">{{ health.status
+          }}</span></p>
           <p>Databas: {{ health.database }}</p>
           <p>Senaste kontroll: {{ new Date(health.timestamp).toLocaleString() }}</p>
         </div>
@@ -19,8 +20,10 @@
       <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-xl font-semibold mb-4">API Endpoints</h2>
         <ul class="space-y-2 text-sm">
-          <li><code class="bg-gray-100 px-2 py-1 rounded">POST /api/cron/create-bookings</code> - Skapa bokningar för morgondagen</li>
-          <li><code class="bg-gray-100 px-2 py-1 rounded">POST /api/cron/process-followups</code> - Skicka uppföljningsmeddelanden</li>
+          <li><code class="bg-gray-100 px-2 py-1 rounded">POST /api/cron/create-bookings</code> - Skapa bokningar för
+            morgondagen</li>
+          <li><code class="bg-gray-100 px-2 py-1 rounded">POST /api/cron/process-followups</code> - Skicka
+            uppföljningsmeddelanden</li>
           <li><code class="bg-gray-100 px-2 py-1 rounded">POST /api/webhook/sms</code> - Ta emot inkommande SMS</li>
           <li><code class="bg-gray-100 px-2 py-1 rounded">GET /api/health</code> - Health check</li>
           <li><code class="bg-gray-100 px-2 py-1 rounded">GET /api/admin/players</code> - Lista spelare</li>
