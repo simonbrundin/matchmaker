@@ -121,17 +121,13 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Anslut spelare" description="Skapa en återkommande tid för en spelare" class="w-96">
-    <UButton icon="i-lucide-plus" label="Anslut spelare" />
+  <UModal v-model:open="open" title="Anslut spelare" description="Skapa en återkommande tid för en spelare" class="">
+    <UButton icon="i-lucide-plus" label="Anslut spelare" size="sm" />
 
     <template #body>
       <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="Spelare" name="player_id" required>
-          <PlayerSelect
-            ref="playerSelectRef"
-            v-model="selectedPlayer"
-            placeholder="Sök spelare..."
-          />
+          <PlayerSelect ref="playerSelectRef" v-model="selectedPlayer" placeholder="Sök spelare..." />
         </UFormField>
 
         <UFormField label="Tid" name="time" required>
@@ -143,40 +139,24 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         </UFormField>
 
         <UFormField label="Typ" name="type">
-          <USelect
-            v-model="state.type"
+          <USelect v-model="state.type"
             :items="[{ label: 'Veckobaserad', value: 'weekly' }, { label: 'Intervall', value: 'interval' }]"
-            class="w-full"
-          />
+            class="w-full" />
         </UFormField>
 
         <template v-if="state.type === 'weekly'">
           <UFormField label="Dag" name="weekday">
-            <USelect
-              v-model="state.weekday"
-              :items="dayOptions"
-              class="w-full"
-            />
+            <USelect v-model="state.weekday" :items="dayOptions" class="w-full" />
           </UFormField>
 
           <UFormField label="Paritet" name="week_parity">
-            <URadioGroup
-              v-model="state.week_parity"
-              :items="parityOptions"
-              orientation="horizontal"
-            />
+            <URadioGroup v-model="state.week_parity" :items="parityOptions" orientation="horizontal" />
           </UFormField>
         </template>
 
         <template v-if="state.type === 'interval'">
           <UFormField label="Antal dagar mellan" name="interval_days">
-            <UInput
-              v-model="state.interval_days"
-              type="number"
-              min="1"
-              placeholder="t.ex. 12"
-              class="w-full"
-            />
+            <UInput v-model="state.interval_days" type="number" min="1" placeholder="t.ex. 12" class="w-full" />
           </UFormField>
         </template>
 
@@ -185,18 +165,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         </UFormField>
 
         <div class="flex justify-end gap-2 pt-4">
-          <UButton
-            label="Avbryt"
-            color="neutral"
-            variant="subtle"
-            @click="open = false"
-          />
-          <UButton
-            label="Skapa"
-            color="primary"
-            type="submit"
-            :loading="loading"
-          />
+          <UButton label="Avbryt" color="neutral" variant="subtle" @click="open = false" />
+          <UButton label="Skapa" color="primary" type="submit" :loading="loading" />
         </div>
       </UForm>
     </template>

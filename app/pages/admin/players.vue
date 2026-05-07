@@ -21,6 +21,7 @@
       <UTable v-model:sorting="sorting" :data="players" :columns="columns">
         <template #actions-cell="{ row }">
           <div class="flex gap-2">
+            <UButton icon="i-lucide-users" variant="ghost" size="xs" @click="openFriendsModal(row)" />
             <UButton label="Redigera" variant="outline" size="xs" @click="openEditModal(row)" />
             <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="openDeleteModal(row)" />
           </div>
@@ -83,6 +84,7 @@
     </UModal>
 
     <PlayersDeleteModal ref="deleteModal" :player="deleteData" @deleted="loadPlayers" />
+    <FriendsListModal ref="friendsModal" :player="friendsPlayer" />
   </div>
 </template>
 
@@ -90,6 +92,8 @@
 import { h, resolveComponent } from 'vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { playerFullName } from '~/utils'
+import FriendsListModal from '~/components/players/FriendsListModal.vue'
+import PlayersDeleteModal from '~/components/players/DeleteModal.vue'
 
 interface Player {
   id: string
@@ -108,6 +112,8 @@ const showAddModal = ref(false)
 const showEditModal = ref(false)
 const deleteModal = ref()
 const deleteData = ref<{ id: string; name: string }>()
+const friendsModal = ref()
+const friendsPlayer = ref<{ id: string; first_name: string; last_name: string | null; elo: number }>({ id: '', first_name: '', last_name: null, elo: 0 })
 const newPlayer = ref({ first_name: '', last_name: '', phone: '', elo: 1200 })
 const editData = reactive({ id: '', first_name: '', last_name: '', phone: '', elo: 1200, is_active: true })
 
@@ -258,6 +264,19 @@ function editPlayer(row: any) {
 
 function openEditModal(row: any) {
   editPlayer(row)
+}
+
+function openFriendsModal(row: any) {
+  const player = row.original || row
+  console.log('openFriendsModal called', player)
+  friendsPlayer.value = {
+    id: String(player.id),
+    first_name: String(player.first_name || ''),
+    last_name: player.last_name != null ? String(player.last_name) : null,
+    elo: Number(player.elo) || 0
+  }
+  console.log('friendsPlayer', friendsPlayer.value)
+  friendsModal.value?.openModal(friendsPlayer.value)
 }
 
 async function saveEdit() {

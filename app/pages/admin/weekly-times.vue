@@ -1,11 +1,10 @@
 <template>
   <div class="p-6">
-    <div class="mb-6">
-      <h1 class="text-2xl font-bold">Återkommande tider</h1>
-      <p class="text-muted">Spelare med stående tider</p>
-    </div>
-
-    <div class="flex justify-end mb-4">
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl font-bold">Återkommande tider</h1>
+        <p class="text-muted">Spelare med stående tider</p>
+      </div>
       <WeeklyTimesAddScheduleModal ref="addModal" @created="loadData" />
     </div>
 
@@ -40,6 +39,7 @@
       <UTable :key="key" :data="schedules" :columns="columns" :row-key="(row: any) => row.id">
         <template #actions-cell="{ row }">
           <div class="flex gap-2">
+            <UButton icon="i-lucide-users" variant="ghost" size="xs" @click="openFriendsModal(row)" />
             <UButton label="Redigera" variant="outline" size="xs" @click="openEditModal(row)" />
             <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="openDeleteModal(row)" />
           </div>
@@ -52,11 +52,14 @@
 
     <WeeklyTimesEditScheduleModal ref="editModal" @updated="loadData" />
     <WeeklyTimesDeleteScheduleModal ref="deleteModal" :schedule="selectedSchedule" @deleted="loadData" />
+    <FriendsListModal v-if="friendsPlayer" ref="friendsModal" :player="friendsPlayer" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { playerFullName } from '~/utils'
+import FriendsListModal from '~/components/players/FriendsListModal.vue'
+import WeeklyTimesAddScheduleModal from '~/components/weekly-times/AddScheduleModal.vue'
 interface Summary {
   activePlayers: number
   weekdaySchedules: number
@@ -108,6 +111,8 @@ const addModal = ref<any>(null)
 const editModal = ref<any>(null)
 const deleteModal = ref<any>(null)
 const selectedSchedule = ref<any>(null)
+const friendsModal = ref<any>(null)
+const friendsPlayer = ref<{ id: string; first_name: string; last_name: string | null; elo: number } | null>(null)
 
 async function loadData() {
   const data: any = await $fetch('/api/admin/weekly-times')
@@ -122,6 +127,8 @@ async function loadData() {
       is_active: s.is_active ? 'Aktiv' : 'Inaktiv',
       player_name: s.player ? playerFullName(s.player) : '',
       player_phone: s.player?.phone || '',
+      player_elo: s.player?.elo || 0,
+      player: s.player,
       time_display: s.time?.substring(0, 5) || '',
       type: s.interval_days ? 'Intervall' : 'Veckobaserad',
       schedule: s.interval_days
@@ -162,5 +169,18 @@ function openDeleteModal(row: any) {
     time_display: schedule.time_display || ''
   }
   deleteModal.value?.openModal(selectedSchedule.value)
+}
+
+function openFriendsModal(row: any) {
+  const schedule = row.original || row
+  friendsPlayer.value = {
+    id: schedule.player?.id || schedule.player_id || '',
+    first_name: schedule.player?.first_name || '',
+    last_name: schedule.player?.last_name || null,
+    elo: schedule.player?.elo || 0
+  }
+  nextTick(() => {
+    friendsModal.value?.openModal(friendsPlayer.value)
+  })
 }
 </script>
