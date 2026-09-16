@@ -1,3 +1,5 @@
+import { getSetting } from "./app-settings";
+
 export interface SMSMessage {
   id: string;
   phoneNumber: string;
@@ -117,9 +119,12 @@ async function initSMSClient(): Promise<SMSGatewayClient> {
   let password: string | undefined;
 
   try {
-    url = (await getSetting("sms_gateway_url")) || undefined;
-    username = (await getSetting("sms_gateway_username")) || undefined;
-    password = (await getSetting("sms_gateway_password")) || undefined;
+    const dbUrl = await getSetting("sms_gateway_url");
+    const dbUsername = await getSetting("sms_gateway_username");
+    const dbPassword = await getSetting("sms_gateway_password");
+    url = dbUrl || undefined;
+    username = dbUsername || undefined;
+    password = dbPassword || undefined;
   } catch {
     // Database not available, use env vars as fallback
   }
