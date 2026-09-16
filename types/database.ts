@@ -8,6 +8,7 @@ export interface Player {
   created_at: string
   updated_at: string
   total_matches_played: number
+  last_contacted_at: string | null
 }
 
 export interface WishlistTime {
@@ -35,6 +36,9 @@ export interface WeeklyTime {
   time: string
   is_active: boolean
   created_at: string
+  week_parity: 'all' | 'odd' | 'even'
+  interval_days: number | null
+  start_date: string | null
 }
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
@@ -45,7 +49,7 @@ export interface BookingBase {
   scheduled_time: string
   status: BookingStatus
   host_confirmed: boolean
-  host_player_id: string
+  host_player_id: string | null
   created_at: string
   updated_at: string
 }
