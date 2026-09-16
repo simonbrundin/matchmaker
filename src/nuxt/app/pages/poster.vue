@@ -19,97 +19,123 @@ const printPoster = () => {
     </div>
 
     <main class="poster" aria-label="Matchmaker-affisch">
-      <div class="poster-topline">
-        <div class="brand-mark">M</div>
-        <span class="brand-name">Matchmaker</span>
-      </div>
+      <!-- Background Decorations -->
+      <div class="bg-orb bg-orb-1"></div>
+      <div class="bg-orb bg-orb-2"></div>
+      <div class="bg-grid"></div>
 
       <section class="poster-hero">
-        <p class="eyebrow">Återkommande spel utan krångel</p>
-        <h1><strong class="headline-kicker">Sluta jaga spelare.</strong><br /><em>Du väljer speltid –<br />Vi jagar åt
-            dig.</em></h1>
-        <p class="hero-copy">
-          Få hjälp att boka din favorittid utan att jaga runt efter medspelare.
-        </p>
+        <div class="brand-badge">
+          <div class="brand-icon">M</div>
+          <span>Matchmaker</span>
+        </div>
+        
+        <div class="hero-content">
+          <p class="eyebrow">
+            <span class="eyebrow-line"></span>
+            Sportbokning för dig som har koll
+            <span class="eyebrow-line"></span>
+          </p>
+          
+          <h1>
+            <span class="headline-main">Sluta jaga.</span>
+            <span class="headline-accent">Börja spela.</span>
+          </h1>
+          
+          <p class="hero-sub">
+            Vi fixar medspelarna – du fixa formen.
+          </p>
+          
+          <div class="hero-cta">
+            <span class="cta-badge">✓ Helt gratis</span>
+            <span class="cta-badge">✓ Inga medlemskap</span>
+            <span class="cta-badge">✓ SMS-påminnelse</span>
+          </div>
+        </div>
       </section>
 
       <div class="poster-image-wrap">
         <img src="https://plus.unsplash.com/premium_photo-1768468158548-7ee090d1c889?w=1600&auto=format&fit=crop&q=85"
           alt="Två personer som spelar padel på en blå padelbana" />
-        <div class="image-label">Din tid. Ditt gäng. Rätt nivå.</div>
+        <div class="image-overlay"></div>
+        <div class="image-label">
+          <span class="image-label-icon">🎾</span>
+          <span>Din tid. Ditt gäng. Rätt nivå.</span>
+        </div>
       </div>
 
       <section class="steps-section">
-        <h2>Så fungerar det</h2>
+        <div class="section-header">
+          <span class="section-tag">Så enkelt</span>
+          <h2>Bara tre steg</h2>
+        </div>
 
         <div class="steps">
           <article class="step">
-            <div class="step-number">
-              <UIcon name="i-lucide-calendar-plus" class="step-icon" />
-            </div>
-            <div>
-              <h3>Registrera dig</h3>
-              <p>Välj <strong>sport, tid och plats</strong> som passar dig.</p>
-            </div>
+            <div class="step-connector"></div>
+            <div class="step-number">1</div>
+            <h3>Boka din tid</h3>
+            <p>Välj sport, tid och arena. <strong>Du bestämmer – vi genomför.</strong></p>
+          </article>
+
+          <article class="step step-accent">
+            <div class="step-connector"></div>
+            <div class="step-number">2</div>
+            <h3>Få ett SMS</h3>
+            <p>Några dagar innan frågar vi om du vill spela. <strong>Svara JA – klart!</strong></p>
           </article>
 
           <article class="step">
-            <div class="step-number">
-              <UIcon name="i-lucide-message-square-check" class="step-icon" />
-            </div>
-            <div>
-              <h3>Svara på SMS:et</h3>
-              <p>Några dagar före tiden får du en fråga. Du kan <strong>alltid säga nej</strong>.</p>
-            </div>
-          </article>
-
-          <article class="step">
-            <div class="step-number">
-              <UIcon name="i-lucide-users-round" class="step-icon" />
-            </div>
-            <div>
-              <h3>Vi hittar spelarna</h3>
-              <p>Vi kontaktar <strong>dina kompisar först</strong> och fyller på med spelare på rätt nivå.</p>
-            </div>
+            <div class="step-number">3</div>
+            <h3>Spela!</h3>
+            <p>Vi kontaktar dina kompisar först, sedan fyller vi på med <strong>rätt nivå</strong>.</p>
           </article>
         </div>
       </section>
 
       <section class="payment-box">
-        <div class="payment-icon">
+        <div class="payment-badge">
           <UIcon name="i-lucide-badge-check" class="payment-icon-svg" />
         </div>
-        <div>
-          <h2>Helt gratis</h2>
-          <p>Du betalar samma pris som för en vanlig bokning.</p>
+        <div class="payment-text">
+          <h2>Helt gratis att använda</h2>
+          <p>Du betalar exakt samma pris som vid vanlig bokning – inga dolda avgifter.</p>
         </div>
       </section>
 
       <footer class="poster-footer">
-        <p>Slipp jaga medspelare. Börja spela.</p>
-        <div class="signup-line">Registrera din tid idag</div>
-        <div class="footer-brand">matchmaker.se</div>
+        <div class="footer-cta">
+          <p class="footer-headline">Redo att börja?</p>
+          <a href="https://matchmaker.se" class="footer-url">matchmaker.se</a>
+        </div>
+        <div class="footer-qr">
+          <div class="qr-placeholder">📱</div>
+          <span>Skanna för att börja</span>
+        </div>
       </footer>
     </main>
   </div>
 </template>
 
 <style scoped>
+/* === Base & Reset === */
 :global(*) {
   box-sizing: border-box;
 }
 
 :global(body) {
   margin: 0;
-  background: #e5e7eb;
+  background: #0f172a;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .poster-page {
   min-height: 100vh;
   padding: 24px;
+  background: #0f172a;
 }
 
+/* === Toolbar === */
 .poster-toolbar {
   width: min(842px, 100%);
   margin: 0 auto 20px;
@@ -120,28 +146,36 @@ const printPoster = () => {
 }
 
 .back-link {
-  color: #374151;
+  color: #94a3b8;
   font-size: 14px;
   text-decoration: none;
+  transition: color 0.2s;
+}
+
+.back-link:hover {
+  color: #e2e8f0;
 }
 
 .export-button {
   border: 0;
   border-radius: 999px;
   padding: 12px 20px;
-  color: white;
-  background: #059669;
+  color: #0f172a;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
   font: inherit;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgb(5 150 105 / 22%);
+  box-shadow: 0 4px 14px rgb(251 191 36 / 35%);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .export-button:hover {
-  background: #047857;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgb(251 191 36 / 45%);
 }
 
+/* === Poster Container === */
 .poster {
   width: 842px;
   height: 1498px;
@@ -151,25 +185,49 @@ const printPoster = () => {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 58px 64px 0;
-  color: #10251d;
-  background: linear-gradient(145deg, #f7faf8 0%, #ffffff 58%, #ecfdf5 100%);
-  border-top: 10px solid #059669;
-  box-shadow: 0 20px 60px rgb(15 23 42 / 16%);
+  padding: 0;
+  color: #f1f5f9;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  box-shadow: 0 25px 80px rgb(0 0 0 / 50%);
 }
 
-.poster::before {
-  content: "";
+/* === Background Decorations === */
+.bg-orb {
   position: absolute;
-  width: 430px;
-  height: 430px;
-  top: -180px;
-  right: -130px;
   border-radius: 50%;
-  background: #d1fae5;
+  filter: blur(80px);
+  opacity: 0.4;
+  pointer-events: none;
 }
 
-.poster-topline,
+.bg-orb-1 {
+  width: 400px;
+  height: 400px;
+  top: -150px;
+  right: -100px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.bg-orb-2 {
+  width: 350px;
+  height: 350px;
+  bottom: 200px;
+  left: -120px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  opacity: 0.25;
+}
+
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgb(255 255 255 / 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* === Content Layers === */
 .poster-hero,
 .poster-image-wrap,
 .steps-section,
@@ -179,76 +237,121 @@ const printPoster = () => {
   z-index: 1;
 }
 
-.poster-topline {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #064e3b;
-  font-size: 20px;
-  font-weight: 800;
+/* === Hero Section === */
+.poster-hero {
+  padding: 50px 56px 40px;
+  text-align: center;
 }
 
-.brand-mark {
-  width: 42px;
-  height: 42px;
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  margin-bottom: 36px;
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  font-size: 16px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.brand-icon {
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  color: white;
-  background: linear-gradient(135deg, #10b981, #047857);
-  font-size: 23px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 8px;
+  font-size: 18px;
 }
 
-.poster-hero {
-  padding: 72px 0 42px;
+.hero-content {
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .eyebrow {
-  margin: 0 0 18px;
-  color: #059669;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: .12em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 0 0 24px;
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.eyebrow-line {
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #3b82f6);
+  border-radius: 2px;
+}
+
+.eyebrow-line:last-child {
+  background: linear-gradient(90deg, #f97316, transparent);
 }
 
 h1 {
-  max-width: 680px;
-  margin: 0;
-  color: #10251d;
-  font-size: 68px;
-  line-height: 1.03;
-  letter-spacing: -.055em;
+  margin: 0 0 20px;
+  font-size: 76px;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
 }
 
-h1 em {
-  color: #52635b;
-  font-style: normal;
+.headline-main {
+  display: block;
+  color: #f1f5f9;
+  font-weight: 800;
 }
 
-.headline-kicker {
-  display: inline-block;
-  color: #10251d;
-  font-size: 1.12em;
-  font-weight: 900;
-  letter-spacing: -.065em;
-  text-transform: uppercase;
+.headline-accent {
+  display: block;
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 800;
 }
 
-.hero-copy {
-  max-width: 560px;
-  margin: 26px 0 0;
-  color: #52635b;
-  font-size: 23px;
+.hero-sub {
+  margin: 0 0 28px;
+  color: #94a3b8;
+  font-size: 22px;
   line-height: 1.4;
 }
 
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.cta-badge {
+  padding: 10px 18px;
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+/* === Image Section === */
 .poster-image-wrap {
-  height: 350px;
+  position: relative;
+  height: 320px;
+  margin: 0 40px;
   overflow: hidden;
-  border: 8px solid white;
-  border-radius: 30px;
-  box-shadow: 0 18px 34px rgb(15 23 42 / 16%);
+  border-radius: 24px;
+  border: 3px solid rgb(255 255 255 / 10%);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 40%);
 }
 
 .poster-image-wrap img {
@@ -257,137 +360,240 @@ h1 em {
   object-fit: cover;
 }
 
+.image-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgb(15 23 42 / 80%) 100%);
+}
+
 .image-label {
   position: absolute;
   right: 24px;
-  bottom: 22px;
-  padding: 10px 16px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: rgb(15 23 42 / 85%);
+  border: 1px solid rgb(255 255 255 / 15%);
   border-radius: 999px;
-  color: white;
-  background: rgb(6 78 59 / 82%);
+  backdrop-filter: blur(10px);
   font-size: 15px;
   font-weight: 700;
+  color: #f1f5f9;
 }
 
+.image-label-icon {
+  font-size: 20px;
+}
+
+/* === Steps Section === */
 .steps-section {
-  padding: 42px 0 28px;
+  padding: 48px 56px 32px;
 }
 
-.steps-section>h2 {
-  margin: 0 0 20px;
-  font-size: 27px;
-  letter-spacing: -.02em;
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.section-tag {
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.steps-section h2 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: -0.02em;
 }
 
 .steps {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 24px;
 }
 
 .step {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  position: relative;
+  padding: 24px;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 20px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.step:hover {
+  background: rgb(255 255 255 / 6%);
+  transform: translateY(-4px);
+}
+
+.step-accent {
+  background: linear-gradient(135deg, rgb(249 115 22 / 15%), rgb(234 88 12 / 10%));
+  border-color: rgb(249 115 22 / 20%);
+}
+
+.step-connector {
+  position: absolute;
+  top: 44px;
+  right: -24px;
+  width: 24px;
+  height: 2px;
+  background: linear-gradient(90deg, rgb(59 130 246 / 50%), transparent);
+}
+
+.step-accent .step-connector {
+  background: linear-gradient(90deg, rgb(249 115 22 / 50%), transparent);
+}
+
+.step:last-child .step-connector {
+  display: none;
 }
 
 .step-number {
-  width: 38px;
-  height: 38px;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  color: #047857;
-  background: #d1fae5;
-  font-size: 18px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 14px;
+  font-size: 22px;
   font-weight: 800;
+  color: white;
+  box-shadow: 0 4px 14px rgb(59 130 246 / 30%);
 }
 
-.step-icon {
-  width: 20px;
-  height: 20px;
+.step-accent .step-number {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  box-shadow: 0 4px 14px rgb(249 115 22 / 30%);
 }
 
 .step h3 {
-  margin: 0 0 7px;
-  font-size: 17px;
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #f1f5f9;
 }
 
 .step p {
   margin: 0;
-  color: #64746c;
-  font-size: 15px;
-  line-height: 1.45;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
+/* === Payment Box === */
 .payment-box {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px 24px;
-  border: 1px solid #a7f3d0;
-  border-radius: 18px;
-  background: #ecfdf5;
+  gap: 20px;
+  margin: 0 40px;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, rgb(251 191 36 / 12%), rgb(249 115 22 / 8%));
+  border: 1px solid rgb(251 191 36 / 20%);
+  border-radius: 20px;
 }
 
-.payment-icon {
-  width: 34px;
-  height: 34px;
+.payment-badge {
+  width: 56px;
+  height: 56px;
   display: grid;
   place-items: center;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  color: white;
-  background: #059669;
-  font-weight: 800;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgb(251 191 36 / 30%);
 }
 
 .payment-icon-svg {
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
+  color: #0f172a;
 }
 
-.payment-box h2 {
-  margin: 0 0 4px;
-  font-size: 16px;
+.payment-text h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fbbf24;
 }
 
-.payment-box p {
+.payment-text p {
   margin: 0;
-  color: #527064;
+  color: #94a3b8;
   font-size: 14px;
 }
 
+/* === Footer === */
 .poster-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
   margin-top: auto;
-  padding: 28px 0 34px;
-  border-top: 1px solid #d9e8df;
+  padding: 36px 56px;
+  background: linear-gradient(180deg, transparent, rgb(0 0 0 / 30%));
 }
 
-.poster-footer p,
-.signup-line,
-.footer-brand {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
+.footer-cta {
+  text-align: left;
 }
 
-.poster-footer p {
-  color: #52635b;
+.footer-headline {
+  margin: 0 0 8px;
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.signup-line {
-  color: #059669;
+.footer-url {
+  font-size: 28px;
+  font-weight: 800;
+  color: #3b82f6;
+  text-decoration: none;
+  transition: color 0.2s;
 }
 
-.footer-brand {
-  color: #064e3b;
+.footer-url:hover {
+  color: #60a5fa;
 }
 
+.footer-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.qr-placeholder {
+  width: 80px;
+  height: 80px;
+  display: grid;
+  place-items: center;
+  background: white;
+  border-radius: 12px;
+  font-size: 40px;
+}
+
+.footer-qr span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* === Responsive === */
 @media (max-width: 700px) {
   .poster-page {
     padding: 12px;
@@ -401,31 +607,65 @@ h1 em {
   .poster {
     height: auto;
     min-height: 1498px;
-    padding: 40px 28px 0;
+  }
+
+  .poster-hero {
+    padding: 36px 24px 28px;
   }
 
   h1 {
-    font-size: 48px;
+    font-size: 52px;
   }
 
-  .hero-copy {
-    font-size: 19px;
+  .hero-sub {
+    font-size: 18px;
   }
 
   .poster-image-wrap {
-    height: 250px;
+    height: 220px;
+    margin: 0 20px;
+  }
+
+  .steps-section {
+    padding: 36px 24px 24px;
   }
 
   .steps {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .step-connector {
+    display: none;
+  }
+
+  .payment-box {
+    margin: 0 20px;
+    flex-direction: column;
+    text-align: center;
   }
 
   .poster-footer {
-    align-items: flex-start;
+    padding: 28px 24px;
     flex-direction: column;
+    gap: 24px;
+    text-align: center;
+  }
+
+  .footer-cta {
+    text-align: center;
+  }
+
+  .footer-headline {
+    font-size: 24px;
+  }
+
+  .footer-url {
+    font-size: 22px;
   }
 }
 
+/* === Print === */
 @media print {
   :global(body) {
     background: white;
