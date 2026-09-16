@@ -1,21 +1,19 @@
-import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { postgresPool } from "~~/server/lib/postgres";
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
-  if (!id) {
-    throw createError({ statusCode: 400, message: 'id required' })
+  const scheduleId = getRouterParam(event, "id");
+  if (!scheduleId) {
+    throw createError({ statusCode: 400, message: "id required" });
   }
 
-  const supabase = getSupabaseAdmin()
+  const result = await postgresPool.query(
+    "DELETE FROM weekly_times WHERE id = $1 RETURNING id",
+    [scheduleId],
+  );
 
-  const { error } = await supabase
-    .from('weekly_times')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    throw createError({ statusCode: 400, message: error.message })
+  if (result.rowCount === 0) {
+    throw createError({ statusCode: 404, message: "weekly time not found" });
   }
 
-  return { success: true }
-})
+  return { success: true };
+});

@@ -1,80 +1,99 @@
-import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { postgresPool } from "~~/server/lib/postgres";
+
+interface ScheduleInput {
+  player_id?: string;
+  day_of_week?: number;
+  weekday?: number;
+  time?: string;
+  week_parity?: string;
+  interval_days?: number;
+  start_date?: string;
+  phone?: string;
+  name?: string;
+  elo?: number;
+}
+
+function resolveDayOfWeek(body: ScheduleInput): number | null {
+  if (body.interval_days) return null;
+  if (body.weekday !== undefined) {
+    return Number(body.weekday) === 7 ? 0 : Number(body.weekday);
+  }
+  if (body.day_of_week !== undefined) return Number(body.day_of_week);
+  return null;
+}
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
-  const { 
-    player_id, 
-    day_of_week, 
-    weekday,
-    time, 
-    week_parity, 
-    interval_days, 
-    start_date,
-    phone,
-    name,
-    elo
-  } = body
+  const body = await readBody<ScheduleInput>(event);
+  const client = await postgresPool.connect();
 
-  const supabase = getSupabaseAdmin()
+  try {
+    await client.query("BEGIN");
 
-  let playerId = player_id
+    let playerId = body.player_id;
+    if (!playerId && body.phone && body.name) {
+      const existingPlayer = await client.query(
+        "SELECT id FROM players WHERE phone = $1",
+        [body.phone],
+      );
+      playerId = existingPlayer.rows[0]?.id;
 
-  if (!playerId && phone && name) {
-    const { data: existingPlayer } = await supabase
-      .from('players')
-      .select('id')
-      .eq('phone', phone)
-      .single()
-
-    if (existingPlayer) {
-      playerId = existingPlayer.id
-    } else {
-      const { data: player, error: playerError } = await supabase
-        .from('players')
-        .insert({
-          phone,
-          name,
-          elo: elo || 1200,
-        })
-        .select()
-        .single()
-
-      if (playerError) {
-        throw createError({ statusCode: 400, message: playerError.message })
+      if (!playerId) {
+        const newPlayer = await client.query(
+          `INSERT INTO players (phone, first_name, elo)
+           VALUES ($1, $2, $3)
+           RETURNING id`,
+          [body.phone, body.name, body.elo || 1200],
+        );
+        playerId = newPlayer.rows[0].id;
       }
-      playerId = player.id
     }
+
+    if (!playerId) {
+      throw createError({
+        statusCode: 400,
+        message: "player_id or (phone + name) required",
+      });
+    }
+    if (!body.time) {
+      throw createError({ statusCode: 400, message: "time required" });
+    }
+    if (body.interval_days !== undefined && Number(body.interval_days) < 1) {
+      throw createError({
+        statusCode: 400,
+        message: "interval_days must be at least 1",
+      });
+    }
+
+    const dayOfWeek = resolveDayOfWeek(body);
+    if (dayOfWeek === null && !body.interval_days) {
+      throw createError({
+        statusCode: 400,
+        message: "weekday or interval_days required",
+      });
+    }
+
+    const result = await client.query(
+      `INSERT INTO weekly_times (
+        player_id, day_of_week, time, week_parity, interval_days, start_date, is_active
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, true)
+      RETURNING *`,
+      [
+        playerId,
+        dayOfWeek,
+        body.time,
+        body.interval_days ? null : body.week_parity || "all",
+        body.interval_days ? Number(body.interval_days) : null,
+        body.start_date || null,
+      ],
+    );
+
+    await client.query("COMMIT");
+    return { success: true, weeklyTime: result.rows[0] };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
-
-  if (!playerId) {
-    throw createError({ statusCode: 400, message: 'player_id or (phone + name) required' })
-  }
-
-  const weekDay = weekday ?? (day_of_week !== undefined ? day_of_week + 1 : undefined)
-  const dayOfWeek = day_of_week ?? (weekday ? weekday - 1 : null)
-
-  if (!weekDay && !interval_days) {
-    throw createError({ statusCode: 400, message: 'weekday or interval_days required' })
-  }
-
-  const { data: weeklyTime, error } = await supabase
-    .from('weekly_times')
-    .insert({
-      player_id: playerId,
-      day_of_week: dayOfWeek,
-      weekday: weekDay,
-      time,
-      week_parity: week_parity || 'all',
-      interval_days,
-      start_date,
-      is_active: true,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    throw createError({ statusCode: 400, message: error.message })
-  }
-
-  return { success: true, weeklyTime }
-})
+});
