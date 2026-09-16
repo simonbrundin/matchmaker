@@ -51,14 +51,21 @@ export class SMSGatewayClient {
     }
   }
 
-  async sendMessage(phoneNumber: string, text: string): Promise<SMSMessage> {
+  async sendMessage(
+    phoneNumber: string,
+    text: string,
+    options: { skipPhoneValidation?: boolean } = {},
+  ): Promise<SMSMessage> {
+    const endpoint = options.skipPhoneValidation
+      ? "/3rdparty/v1/messages?skipPhoneValidation=true"
+      : "/3rdparty/v1/messages";
     const result = await this.request<{
       id: string;
       phoneNumber: string;
       text: string;
       status: string;
       createdAt: string;
-    }>("/3rdparty/v1/messages", {
+    }>(endpoint, {
       method: "POST",
       body: JSON.stringify({
         textMessage: { text },

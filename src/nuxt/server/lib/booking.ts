@@ -6,7 +6,7 @@ import type {
   BookedPlayer,
   WeeklyTime,
   InviteCandidate,
-} from "../../types/database";
+} from "../../app/types/database";
 
 const CONFIRMATION_MESSAGE = `🎉 Padel imorgon kl {time} är bekräftad! {count}/4 spelare klara. Välkommen!`;
 

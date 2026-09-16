@@ -154,3 +154,33 @@ DROP TRIGGER IF EXISTS update_bookings_updated_at ON bookings;
 CREATE TRIGGER update_bookings_updated_at
     BEFORE UPDATE ON bookings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- 10. CASHCARD_BALANCES (Lyca mobile balance tracking)
+CREATE TABLE IF NOT EXISTS cashcard_balances (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    balance DECIMAL(10, 2) NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'SEK',
+    raw_response TEXT,
+    checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 11. CASHCARD_CONFIG (Lyca config for balance checks)
+CREATE TABLE IF NOT EXISTS cashcard_config (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    phone_number TEXT NOT NULL,
+    check_command TEXT NOT NULL DEFAULT 'SALDO',
+    shortcode TEXT NOT NULL DEFAULT '1750',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Insert default Lyca Sweden config if not exists
+INSERT INTO cashcard_config (phone_number, check_command, shortcode)
+SELECT '+46 769 734 169', 'SALDO', '3535'
+WHERE NOT EXISTS (SELECT 1 FROM cashcard_config LIMIT 1);
+
+-- Trigger for cashcard_config updated_at
+DROP TRIGGER IF EXISTS update_cashcard_config_updated_at ON cashcard_config;
+CREATE TRIGGER update_cashcard_config_updated_at
+    BEFORE UPDATE ON cashcard_config
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();

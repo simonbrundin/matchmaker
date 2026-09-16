@@ -28,6 +28,10 @@ const links = [[{
   icon: 'i-lucide-repeat',
   to: '/admin/weekly-times'
 }, {
+  label: 'Kontantkort',
+  icon: 'i-lucide-credit-card',
+  to: '/admin/cashcard'
+}, {
   label: 'Tester',
   icon: 'i-lucide-flask-conical',
   children: [

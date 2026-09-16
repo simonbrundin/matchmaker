@@ -246,7 +246,9 @@ async function sendInvitesForBooking(
     `SELECT player_id, status FROM booked_players WHERE booking_id = $1`,
     [booking.id],
   );
-  const contacted = new Set(bpResult.rows.map((p) => p.player_id));
+  const contacted = new Set(
+    bpResult.rows.map((p: { player_id: string }) => p.player_id),
+  );
   const slots = 4 - confirmed;
   if (slots <= 0) return;
 

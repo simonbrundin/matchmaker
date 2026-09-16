@@ -5,6 +5,11 @@ const stats = ref({ activePlayers: 0, pendingBookings: 0, confirmedToday: 0 })
 const isLoading = ref(true)
 const recentBookings = ref<any[]>([])
 
+// Cashcard balance
+const cashcardBalance = ref<{ balance: number | null; currency: string; checked_at: string } | null>(null)
+const isCheckingBalance = ref(false)
+const balanceMessage = ref('')
+
 const dashboardStats = [
   { key: 'activePlayers', label: 'Aktiva spelare' },
   { key: 'pendingBookings', label: 'Väntande bokningar' },
@@ -36,6 +41,9 @@ onMounted(async () => {
   } finally {
     isLoading.value = false
   }
+  
+  // Load cashcard balance
+  await loadCashcardBalance()
 })
 
 function statusColor(status: string) {
@@ -47,6 +55,32 @@ function statusColor(status: string) {
   }
   return colors[status] || 'gray'
 }
+
+async function checkCashcardBalance() {
+  isCheckingBalance.value = true
+  balanceMessage.value = ''
+  try {
+    const { data } = await useFetch('/api/admin/cashcard/check', { method: 'POST' })
+    if (data.value?.success) {
+      balanceMessage.value = data.value.message
+    }
+  } catch (e: any) {
+    balanceMessage.value = 'Kunde inte skicka saldo-förfrågan'
+  } finally {
+    isCheckingBalance.value = false
+  }
+}
+
+async function loadCashcardBalance() {
+  try {
+    const { data } = await useFetch('/api/admin/cashcard/balance')
+    if (data.value?.balance) {
+      cashcardBalance.value = data.value.balance
+    }
+  } catch (e) {
+    // Silently fail
+  }
+}
 </script>
 
 <template>
@@ -56,11 +90,42 @@ function statusColor(status: string) {
       <p class="text-muted">Systemstatistik för Matchmaker</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
       <UCard v-for="stat in dashboardStats" :key="stat.key">
         <template #header>{{ stat.label }}</template>
         <LoadingState v-if="isLoading" label="Laddar..." />
         <div v-else class="text-3xl font-bold">{{ stats[stat.key] }}</div>
+      </UCard>
+      
+      <!-- Cashcard Balance Card -->
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <span>Kontantkort</span>
+            <UButton
+              size="xs"
+              icon="i-heroicons-arrow-path"
+              :loading="isCheckingBalance"
+              @click="checkCashcardBalance"
+            >
+              Kolla
+            </UButton>
+          </div>
+        </template>
+        <LoadingState v-if="isLoading" label="Laddar..." />
+        <div v-else-if="cashcardBalance">
+          <div class="text-3xl font-bold text-primary">
+            {{ cashcardBalance.balance.toFixed(2) }} {{ cashcardBalance.currency }}
+          </div>
+          <p class="text-xs text-muted mt-1">
+            Uppdaterat: {{ new Date(cashcardBalance.checked_at).toLocaleString('sv-SE') }}
+          </p>
+        </div>
+        <div v-else class="text-muted">
+          <p>Ingen data</p>
+          <p class="text-xs mt-1">Klicka "Kolla" för att hämta saldo</p>
+        </div>
+        <p v-if="balanceMessage" class="text-xs text-success mt-2">{{ balanceMessage }}</p>
       </UCard>
     </div>
 
