@@ -101,30 +101,75 @@ export class SMSGatewayClient {
   }
 }
 
+// Cached client and initialization promise
 let smsClient: SMSGatewayClient | null = null;
+let initPromise: Promise<SMSGatewayClient> | null = null;
 
-export function getSMSClient(): SMSGatewayClient {
-  if (!smsClient) {
-    let config: any;
+export function clearSMSClientCache(): void {
+  smsClient = null;
+  initPromise = null;
+}
+
+async function initSMSClient(): Promise<SMSGatewayClient> {
+  // First try database settings, then fall back to environment variables
+  let url: string | undefined;
+  let username: string | undefined;
+  let password: string | undefined;
+
+  try {
+    url = (await getSetting("sms_gateway_url")) || undefined;
+    username = (await getSetting("sms_gateway_username")) || undefined;
+    password = (await getSetting("sms_gateway_password")) || undefined;
+  } catch {
+    // Database not available, use env vars as fallback
+  }
+
+  // Fall back to environment variables if database values are empty
+  if (!url || !username || !password) {
     try {
-      config = useRuntimeConfig();
+      const config = useRuntimeConfig();
+      url ||= config.smsGatewayUrl as string;
+      username ||= config.smsGatewayUsername as string;
+      password ||= config.smsGatewayPassword as string;
     } catch {
-      throw new Error(
-        "SMS Gateway: useRuntimeConfig only available in Nuxt context",
-      );
+      // useRuntimeConfig not available in this context
     }
-    if (
-      !config.smsGatewayUrl ||
-      !config.smsGatewayUsername ||
-      !config.smsGatewayPassword
-    ) {
-      throw new Error("SMS Gateway configuration missing");
-    }
-    smsClient = new SMSGatewayClient({
-      url: config.smsGatewayUrl as string,
-      username: config.smsGatewayUsername as string,
-      password: config.smsGatewayPassword as string,
+  }
+
+  if (!url || !username || !password) {
+    throw new Error("SMS Gateway configuration missing");
+  }
+
+  return new SMSGatewayClient({
+    url,
+    username,
+    password,
+  });
+}
+
+/**
+ * Get SMS client. Returns a Promise that resolves to the client.
+ * Subsequent calls return the same promise until the cache is cleared.
+ */
+export function getSMSClient(): Promise<SMSGatewayClient> {
+  if (!initPromise) {
+    initPromise = initSMSClient().then((client) => {
+      smsClient = client;
+      return client;
     });
+  }
+  return initPromise;
+}
+
+/**
+ * Sync version - use this only after ensuring the client is initialized.
+ * Throws if not initialized yet.
+ */
+export function getSMSClientSync(): SMSGatewayClient {
+  if (!smsClient) {
+    throw new Error(
+      "SMS Gateway not initialized. Call getSMSClient() and await it first.",
+    );
   }
   return smsClient;
 }

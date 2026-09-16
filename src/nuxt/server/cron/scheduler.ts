@@ -1,17 +1,18 @@
 import cron from "node-cron";
 import { getBookingService } from "../lib/booking";
-import { getSMSClient } from "../lib/sms-gateway";
+import { getSMSClient, type SMSGatewayClient } from "../lib/sms-gateway";
 import { generateInviteMessage } from "../lib/ai";
 import { postgresPool } from "../lib/postgres";
 import { sendToAdmin } from "../lib/telegram";
 import { HOST_DAYS_AHEAD, PLAYER_DAYS_AHEAD } from "../lib/config";
 
 let bookingService: ReturnType<typeof getBookingService> | null = null;
-let smsClient: ReturnType<typeof getSMSClient> | null = null;
+let smsClientPromise: Promise<SMSGatewayClient> | null = null;
 
-function getServices() {
+async function getServices() {
   if (!bookingService) bookingService = getBookingService();
-  if (!smsClient) smsClient = getSMSClient();
+  if (!smsClientPromise) smsClientPromise = getSMSClient();
+  const smsClient = await smsClientPromise;
   return { bookingService, smsClient };
 }
 
@@ -64,7 +65,7 @@ export function startCronJobs() {
 }
 
 async function sendHostConfirmations() {
-  const { bookingService, smsClient } = getServices();
+  const { bookingService, smsClient } = await getServices();
   const target = new Date();
   target.setDate(target.getDate() + HOST_DAYS_AHEAD);
   const dateStr = target.toISOString().split("T")[0];
@@ -119,7 +120,7 @@ async function sendHostConfirmations() {
 }
 
 async function sendHostReminders() {
-  const { smsClient } = getServices();
+  const { smsClient } = await getServices();
   for (let days = 5; days >= 1; days--) {
     const target = new Date();
     target.setDate(target.getDate() + days);
@@ -179,7 +180,7 @@ async function sendHostReminders() {
 }
 
 async function sendPlayerInvites() {
-  const { bookingService, smsClient } = getServices();
+  const { bookingService, smsClient } = await getServices();
   const round = getRound();
 
   await sendToAdmin(`📨 Spelarinbjudningar (runda ${round})...`);
@@ -240,7 +241,7 @@ async function sendInvitesForBooking(
   confirmed: number,
   round: number,
 ) {
-  const { bookingService, smsClient } = getServices();
+  const { bookingService, smsClient } = await getServices();
 
   const bpResult = await postgresPool.query(
     `SELECT player_id, status FROM booked_players WHERE booking_id = $1`,

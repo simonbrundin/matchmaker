@@ -10,8 +10,14 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const client = getSMSClient();
-  const result = await client.sendMessage(body.phoneNumber, body.message);
-
-  return { success: true, messageId: result.id };
+  try {
+    const client = await getSMSClient();
+    const result = await client.sendMessage(body.phoneNumber, body.message);
+    return { success: true, messageId: result.id };
+  } catch (err: any) {
+    throw createError({
+      statusCode: 500,
+      message: err.message || "Failed to send SMS",
+    });
+  }
 });

@@ -12,7 +12,7 @@ const CONFIRMATION_MESSAGE = `🎉 Padel imorgon kl {time} är bekräftad! {coun
 
 export class BookingService {
   async notifyAllPlayers(booking: Booking): Promise<void> {
-    const smsClient = getSMSClient();
+    const smsClient = await getSMSClient();
 
     const result = await postgresPool.query(
       `SELECT bp.*, p.id as "playerId", p.phone, p.first_name, p.last_name
