@@ -99,12 +99,14 @@ curl -X POST -u "username:password" \
 ```
 
 Ersätt:
+
 - `username:password` - dina credentials från appen
 - `[din-domän]` - din server-domän (t.ex. matchmaker.example.com)
 
 ### Webhook-payload
 
 Webhoo-payload som din server tar emot:
+
 ```json
 {
   "event": "sms:received",
@@ -168,12 +170,12 @@ Din server har redan en endpoint konfigurerad på `/api/webhook/sms.post.ts` som
 
 ## Kostnad
 
-| Del | Pris |
-|-----|------|
-| Lyca Mobile SIM (1 GB) | ~49 kr/mån |
-| App | Gratis |
-| Molnserver (sms-gate.app) | Gratis |
-| **Total/år** | **~588 kr** |
+| Del                       | Pris        |
+| ------------------------- | ----------- |
+| Lyca Mobile SIM (1 GB)    | ~49 kr/mån  |
+| App                       | Gratis      |
+| Molnserver (sms-gate.app) | Gratis      |
+| **Total/år**              | **~588 kr** |
 
 ---
 
