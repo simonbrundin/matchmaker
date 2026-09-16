@@ -1,25 +1,19 @@
-import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { postgresPool } from "~~/server/lib/postgres";
 
 export default defineEventHandler(async () => {
-  const supabase = getSupabaseAdmin()
-
   try {
-    const { data: players, error } = await supabase
-      .from('players')
-      .select('id', { count: 'exact' })
-      .limit(1)
-
+    await postgresPool.query("SELECT 1");
     return {
-      status: 'ok',
+      status: "ok",
       timestamp: new Date().toISOString(),
-      database: error ? 'error' : 'connected',
-    }
+      database: "connected",
+    };
   } catch (error) {
     return {
-      status: 'error',
+      status: "error",
       timestamp: new Date().toISOString(),
-      database: 'disconnected',
+      database: "disconnected",
       error: String(error),
-    }
+    };
   }
-})
+});

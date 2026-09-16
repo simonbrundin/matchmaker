@@ -1,48 +1,34 @@
-import { getSupabaseAdmin } from './supabase'
+import { postgresPool } from './postgres'
 import { getSMSClient } from './sms-gateway'
-import type {
-  Player,
-  Booking,
-  BookingBase,
-  BookedPlayer,
-  WeeklyTime,
-  Unavailability,
-  InviteCandidate,
-} from '~/types/database'
+import type { Player, Booking, BookedPlayer, WeeklyTime, InviteCandidate } from '../../types/database'
 
 const CONFIRMATION_MESSAGE = `🎉 Padel imorgon kl {time} är bekräftad! {count}/4 spelare klara. Välkommen!`
 
 export class BookingService {
-  private supabase: any = null
-
-  private getSupabase() {
-    if (!this.supabase) {
-      this.supabase = getSupabaseAdmin()
-    }
-    return this.supabase
-  }
-
   async notifyAllPlayers(booking: Booking): Promise<void> {
     const smsClient = getSMSClient()
-    
-    const { data: bookedPlayers } = await this.getSupabase()
-      .from('booked_players')
-      .select('*, player:players(*)')
-      .eq('booking_id', booking.id)
-      .eq('status', 'confirmed')
 
-    if (!bookedPlayers || bookedPlayers.length < 4) return
+    const result = await postgresPool.query(
+      `SELECT bp.*, p.id as "playerId", p.phone, p.first_name, p.last_name
+       FROM booked_players bp
+       JOIN players p ON p.id = bp.player_id
+       WHERE bp.booking_id = $1 AND bp.status = 'confirmed'`,
+      [booking.id],
+    )
+
+    const bookedPlayers = result.rows
+    if (bookedPlayers.length < 4) return
 
     const message = CONFIRMATION_MESSAGE
       .replace('{time}', booking.scheduled_time)
-      .replace('{count}', bookedPlayers.length.toString())
+      .replace('{count}', String(bookedPlayers.length))
 
     for (const bp of bookedPlayers) {
-      if (bp.player?.phone) {
+      if (bp.phone) {
         try {
-          await smsClient.sendMessage(bp.player.phone, message)
+          await smsClient.sendMessage(bp.phone, message)
         } catch (error) {
-          console.error(`Failed to notify player:`, error)
+          console.error('Failed to notify player:', error)
         }
       }
     }
@@ -50,76 +36,59 @@ export class BookingService {
 
   async getWeeklyTimesForDate(date: string): Promise<WeeklyTime[]> {
     const dayOfWeek = new Date(date).getDay()
-    const { data, error } = await this.getSupabase()
-      .from('weekly_times')
-      .select('*')
-      .eq('is_active', true)
-      .eq('day_of_week', dayOfWeek)
-
-    if (error) throw error
-    return data || []
+    const result = await postgresPool.query(
+      `SELECT * FROM weekly_times
+       WHERE is_active = true AND day_of_week = $1 AND interval_days IS NULL`,
+      [dayOfWeek],
+    )
+    return result.rows
   }
 
-  async getPlayerAvailability(
-    playerId: string,
-    date: string
-  ): Promise<boolean> {
-    const { data: unavailabilities } = await this.getSupabase()
-      .from('unavailabilities')
-      .select('*')
-      .eq('player_id', playerId)
-      .lte('start_date', date)
-      .gte('end_date', date)
-
-    return !unavailabilities || unavailabilities.length === 0
+  async getPlayerAvailability(playerId: string, date: string): Promise<boolean> {
+    const result = await postgresPool.query(
+      `SELECT id FROM unavailabilities
+       WHERE player_id = $1 AND $2 BETWEEN start_date AND end_date`,
+      [playerId, date],
+    )
+    return result.rowCount === 0
   }
 
   async getEligibleCandidates(
     bookingId: string,
-    hostElo: number,
+    _hostElo: number,
     date: string,
-    time: string
+    _time: string,
   ): Promise<InviteCandidate[]> {
-    const { data: players, error } = await this.getSupabase()
-      .from('players')
-      .select('*')
-      .eq('is_active', true)
-      .gte('elo', hostElo - 200)
-      .lte('elo', hostElo + 200)
-
-    if (error) throw error
-    if (!players) return []
-
+    const playersResult = await postgresPool.query(
+      `SELECT * FROM players WHERE is_active = true`,
+    )
+    const players = playersResult.rows
     const eligible: InviteCandidate[] = []
 
     for (const player of players) {
       const isAvailable = await this.getPlayerAvailability(player.id, date)
       if (!isAvailable) continue
 
-      const { data: lastMessage } = await this.getSupabase()
-        .from('messages')
-        .select('sent_at')
-        .eq('player_id', player.id)
-        .order('sent_at', { ascending: false })
-        .limit(1)
-        .single()
-
-      const { data: friends } = await this.getSupabase()
-        .from('friends')
-        .select('*')
-        .eq('friend_id', player.id)
-        .limit(1)
-
-      const probability = await this.calculateAcceptProbability(
-        player,
-        friends && friends.length > 0
+      const lastMsgResult = await postgresPool.query(
+        `SELECT sent_at FROM messages
+         WHERE player_id = $1 AND booking_id = $2
+         ORDER BY sent_at DESC LIMIT 1`,
+        [player.id, bookingId],
       )
+
+      const friendResult = await postgresPool.query(
+        `SELECT id FROM friends WHERE friend_id = $1 LIMIT 1`,
+        [player.id],
+      )
+      const isFriend = (friendResult.rowCount ?? 0) > 0
+
+      const probability = await this.calculateAcceptProbability(player, isFriend)
 
       eligible.push({
         player,
         probability,
-        is_friend: friends && friends.length > 0,
-        last_contacted_at: lastMessage?.sent_at || null,
+        is_friend: isFriend,
+        last_contacted_at: lastMsgResult.rows[0]?.sent_at || null,
       })
     }
 
@@ -127,35 +96,31 @@ export class BookingService {
       if (a.is_friend !== b.is_friend) return b.is_friend ? 1 : -1
       if (!a.last_contacted_at) return -1
       if (!b.last_contacted_at) return 1
-      return (
-        new Date(a.last_contacted_at).getTime() -
-        new Date(b.last_contacted_at).getTime()
-      )
+      return new Date(a.last_contacted_at).getTime() - new Date(b.last_contacted_at).getTime()
     })
   }
 
   private async calculateAcceptProbability(
     player: Player,
-    isFriend: boolean
+    isFriend: boolean,
   ): Promise<number> {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    const { data: recentMessages } = await this.getSupabase()
-      .from('messages')
-      .select('response')
-      .eq('player_id', player.id)
-      .gte('sent_at', thirtyDaysAgo.toISOString())
-      .not('response', 'is', null)
+    const result = await postgresPool.query(
+      `SELECT response FROM messages
+       WHERE player_id = $1 AND sent_at >= $2 AND response IS NOT NULL`,
+      [player.id, thirtyDaysAgo.toISOString()],
+    )
 
-    if (!recentMessages || recentMessages.length === 0) {
+    if (result.rowCount === 0) {
       const baseProbability = 0.3
       const friendBonus = isFriend ? 0.2 : 0
       return Math.min(baseProbability + friendBonus, 0.8)
     }
 
-    const yesCount = recentMessages.filter((m) => m.response === 'ja').length
-    const winRate = yesCount / recentMessages.length
+    const yesCount = result.rows.filter((m: any) => m.response === 'ja').length
+    const winRate = yesCount / (result.rowCount || 1)
 
     return 0.3 + winRate * 0.4 + (isFriend ? 0.2 : 0)
   }
@@ -163,158 +128,136 @@ export class BookingService {
   async createBooking(
     hostPlayerId: string,
     date: string,
-    time: string
+    time: string,
   ): Promise<Booking> {
-    const { data: booking, error } = await this.getSupabase()
-      .from('bookings')
-      .insert({
-        scheduled_date: date,
-        scheduled_time: time,
-        status: 'pending',
-        host_confirmed: false,
-        host_player_id: hostPlayerId,
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    return booking
-
-    const { error: hostError } = await this.getSupabase()
-      .from('booked_players')
-      .insert({
-        booking_id: booking.id,
-        player_id: hostPlayerId,
-        status: 'confirmed',
-        invite_number: 0,
-      })
-
-    if (hostError) throw hostError
-
-    return booking
+    const result = await postgresPool.query(
+      `INSERT INTO bookings (scheduled_date, scheduled_time, status, host_player_id)
+       VALUES ($1, $2, 'pending', $3)
+       RETURNING *`,
+      [date, time, hostPlayerId],
+    )
+    return result.rows[0]
   }
 
   async invitePlayer(
     bookingId: string,
     playerId: string,
-    inviteNumber: number
+    inviteNumber: number,
   ): Promise<BookedPlayer> {
-    const { data, error } = await this.getSupabase()
-      .from('booked_players')
-      .insert({
-        booking_id: bookingId,
-        player_id: playerId,
-        status: 'invited',
-        invite_number: inviteNumber,
-      })
-      .select()
-      .single()
+    const client = await postgresPool.connect()
+    try {
+      await client.query('BEGIN')
 
-    if (error) throw error
+      const insertResult = await client.query(
+        `INSERT INTO booked_players (booking_id, player_id, status, invite_number)
+         VALUES ($1, $2, 'invited', $3)
+         RETURNING *`,
+        [bookingId, playerId, inviteNumber],
+      )
 
-    await this.getSupabase()
-      .from('players')
-      .update({ last_contacted_at: new Date().toISOString() })
-      .eq('id', playerId)
+      await client.query(
+        `UPDATE players SET last_contacted_at = NOW() WHERE id = $1`,
+        [playerId],
+      )
 
-    return data
+      await client.query('COMMIT')
+      return insertResult.rows[0]
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   }
 
   async updatePlayerResponse(
     bookedPlayerId: string,
-    response: 'ja' | 'nej' | 'kanske'
+    response: 'ja' | 'nej' | 'kanske',
   ): Promise<void> {
-    const { data: bookedPlayer } = await this.getSupabase()
-      .from('booked_players')
-      .select('*')
-      .eq('id', bookedPlayerId)
-      .single()
-
-    if (!bookedPlayer) throw new Error('Booked player not found')
-
+    const result = await postgresPool.query(
+      `SELECT * FROM booked_players WHERE id = $1`,
+      [bookedPlayerId],
+    )
+    if (result.rowCount === 0) throw new Error('Booked player not found')
+    const bookedPlayer = result.rows[0]
     await this.updatePlayerResponseWithBooking(bookedPlayerId, response, bookedPlayer.booking_id)
   }
 
   async updatePlayerResponseWithBooking(
     bookedPlayerId: string,
     response: 'ja' | 'nej' | 'kanske',
-    bookingId: string
+    bookingId: string,
   ): Promise<void> {
     const status = response === 'ja' ? 'confirmed' : response === 'nej' ? 'declined' : 'waitlist'
+    const client = await postgresPool.connect()
+    try {
+      await client.query('BEGIN')
 
-    await this.getSupabase()
-      .from('booked_players')
-      .update({
-        response,
-        status,
-        responded_at: new Date().toISOString(),
-      })
-      .eq('id', bookedPlayerId)
+      await client.query(
+        `UPDATE booked_players
+         SET response = $1, status = $2, responded_at = NOW()
+         WHERE id = $3`,
+        [response, status, bookedPlayerId],
+      )
 
-    const { data: booking } = await this.getSupabase()
-      .from('bookings')
-      .select('*')
-      .eq('id', bookingId)
-      .single()
+      const bookingResult = await client.query(
+        `SELECT * FROM bookings WHERE id = $1`,
+        [bookingId],
+      )
+      const booking = bookingResult.rows[0]
+      if (!booking) {
+        await client.query('COMMIT')
+        return
+      }
 
-    if (!booking) return
+      const confirmedResult = await client.query(
+        `SELECT id FROM booked_players WHERE booking_id = $1 AND status = 'confirmed'`,
+        [bookingId],
+      )
 
-    const { data: confirmedPlayers } = await this.getSupabase()
-      .from('booked_players')
-      .select('*')
-      .eq('booking_id', booking.id)
-      .eq('status', 'confirmed')
+      if ((confirmedResult.rowCount ?? 0) >= 4) {
+        await client.query(
+          `UPDATE bookings SET status = 'confirmed' WHERE id = $1`,
+          [bookingId],
+        )
+      }
 
-    if (confirmedPlayers && confirmedPlayers.length >= 4) {
-      await this.getSupabase()
-        .from('bookings')
-        .update({ status: 'confirmed' })
-        .eq('id', booking.id)
+      await client.query('COMMIT')
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
     }
   }
 
   async getPlayerPendingBookings(playerId: string): Promise<Booking[]> {
-    const { data: bookedPlayers } = await this.getSupabase()
-      .from('booked_players')
-      .select('booking_id, booking:bookings(*)')
-      .eq('player_id', playerId)
-      .eq('status', 'invited')
-
-    if (!bookedPlayers || bookedPlayers.length === 0) return []
-
-    const bookings: Booking[] = []
-    for (const bp of bookedPlayers) {
-      if (bp.booking?.status === 'pending') {
-        bookings.push(bp.booking as Booking)
-      }
-    }
-    return bookings
+    const result = await postgresPool.query(
+      `SELECT b.* FROM bookings b
+       JOIN booked_players bp ON bp.booking_id = b.id
+       WHERE bp.player_id = $1 AND bp.status = 'invited' AND b.status = 'pending'`,
+      [playerId],
+    )
+    return result.rows
   }
 
   async getBookingWithPlayers(bookingId: string): Promise<Booking | null> {
-    const { data: booking, error } = await this.getSupabase()
-      .from('bookings')
-      .select('*, booked_players(*, player:players(*))')
-      .eq('id', bookingId)
-      .single()
+    const bookingResult = await postgresPool.query(
+      `SELECT * FROM bookings WHERE id = $1`,
+      [bookingId],
+    )
+    if (bookingResult.rowCount === 0) return null
+    const booking = bookingResult.rows[0]
 
-    if (error) throw error
-    return booking
-  }
+    const playersResult = await postgresPool.query(
+      `SELECT bp.*, p.id as "playerId", p.phone, p.first_name, p.last_name, p.elo
+       FROM booked_players bp
+       JOIN players p ON p.id = bp.player_id
+       WHERE bp.booking_id = $1`,
+      [bookingId],
+    )
 
-  async findBookingByShortRef(shortRef: string): Promise<Booking | null> {
-    const normalizedRef = shortRef.toUpperCase()
-    const { data: bookings, error } = await this.getSupabase()
-      .from('bookings')
-      .select('*')
-      .eq('status', 'pending')
-      .ilike('id', `%${normalizedRef}%`)
-      .limit(1)
-      .single()
-
-    if (error || !bookings) return null
-    return bookings
+    return { ...booking, booked_players: playersResult.rows }
   }
 }
 

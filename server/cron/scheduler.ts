@@ -2,19 +2,17 @@ import cron from 'node-cron'
 import { getBookingService } from '../lib/booking'
 import { getSMSClient } from '../lib/sms-gateway'
 import { generateInviteMessage } from '../lib/ai'
-import { getSupabaseAdmin } from '../lib/supabase'
+import { postgresPool } from '../lib/postgres'
 import { sendToAdmin } from '../lib/telegram'
-import { HOST_DAYS_AHEAD, HOST_CONTACT_TIMES, PLAYER_DAYS_AHEAD, PLAYER_CONTACT_TIMES } from '../lib/config'
+import { HOST_DAYS_AHEAD, PLAYER_DAYS_AHEAD } from '../lib/config'
 
-let bookingService: any = null
-let smsClient: any = null
-let supabase: any = null
+let bookingService: ReturnType<typeof getBookingService> | null = null
+let smsClient: ReturnType<typeof getSMSClient> | null = null
 
 function getServices() {
   if (!bookingService) bookingService = getBookingService()
   if (!smsClient) smsClient = getSMSClient()
-  if (!supabase) supabase = getSupabaseAdmin()
-  return { bookingService, smsClient, supabase }
+  return { bookingService, smsClient }
 }
 
 function getSwedishDate(dateStr: string): string {
@@ -64,7 +62,7 @@ export function startCronJobs() {
 }
 
 async function sendHostConfirmations() {
-  const { bookingService, smsClient, supabase } = getServices()
+  const { bookingService, smsClient } = getServices()
   const target = new Date()
   target.setDate(target.getDate() + HOST_DAYS_AHEAD)
   const dateStr = target.toISOString().split('T')[0]
@@ -72,43 +70,42 @@ async function sendHostConfirmations() {
 
   await sendToAdmin(`📅 Värdinbjudningar för ${dateStr}...`)
 
-  const { data: wts } = await supabase
-    .from('weekly_times')
-    .select('*, player:players(*)')
-    .eq('day_of_week', dayNum)
-    .eq('is_active', true)
-
-  if (!wts?.length) return
+  const wtsResult = await postgresPool.query(
+    `SELECT wt.*, p.phone, p.first_name, p.last_name
+     FROM weekly_times wt
+     JOIN players p ON p.id = wt.player_id
+     WHERE wt.day_of_week = $1 AND wt.is_active = true AND wt.interval_days IS NULL`,
+    [dayNum],
+  )
+  const wts = wtsResult.rows
+  if (!wts.length) return
 
   for (const wt of wts) {
-    const { data: booking } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('scheduled_date', dateStr)
-      .eq('scheduled_time', wt.time)
-      .single()
+    const bookingResult = await postgresPool.query(
+      `SELECT * FROM bookings WHERE scheduled_date = $1 AND scheduled_time = $2`,
+      [dateStr, wt.time],
+    )
+    const existingBooking = bookingResult.rows[0]
 
-    if (booking?.host_confirmed) continue
+    if (existingBooking?.host_confirmed) continue
 
-    const newBooking = !booking
-      ? await bookingService.createBooking(wt.player_id, dateStr, wt.time)
-      : booking
+    const newBooking = existingBooking
+      ? existingBooking
+      : await bookingService.createBooking(wt.player_id as string, dateStr, wt.time as string)
 
-    const player = wt.player
-    if (!player?.phone) continue
+    if (!wt.phone) continue
 
-    const msg = `Hej ${player.name}! Padel ${getSwedishDate(dateStr)} kl ${wt.time} - kan du spela denna vecka? Svara ja/nej.`
+    const firstName = wt.first_name || 'spelare'
+    const msg = `Hej ${firstName}! Padel ${getSwedishDate(dateStr)} kl ${wt.time!} - kan du spela denna vecka? Svara ja/nej.`
 
     try {
-      await smsClient.sendMessage(player.phone, msg)
-      await supabase.from('messages').insert({
-        booking_id: newBooking.id,
-        player_id: wt.player_id,
-        direction: 'outgoing',
-        content: msg,
-        invite_round: 1,
-      })
-      await sendToAdmin(`📨 Värdinbjudan till ${player.name}`)
+      await smsClient.sendMessage(wt.phone, msg)
+      await postgresPool.query(
+        `INSERT INTO messages (booking_id, player_id, direction, content, invite_round)
+         VALUES ($1, $2, 'outgoing', $3, 1)`,
+        [newBooking.id, wt.player_id as string, msg],
+      )
+      await sendToAdmin(`📨 Värdinbjudan till ${firstName}`)
     } catch (e) {
       console.error('Värd failed:', e)
     }
@@ -116,61 +113,56 @@ async function sendHostConfirmations() {
 }
 
 async function sendHostReminders() {
-  const { bookingService, smsClient, supabase } = getServices()
+  const { smsClient } = getServices()
   for (let days = 5; days >= 1; days--) {
     const target = new Date()
     target.setDate(target.getDate() + days)
     const dateStr = target.toISOString().split('T')[0]
     const dayNum = target.getDay()
 
-    const { data: wts } = await supabase
-      .from('weekly_times')
-      .select('*, player:players(*)')
-      .eq('day_of_week', dayNum)
-      .eq('is_active', true)
-
-    if (!wts?.length) continue
+    const wtsResult = await postgresPool.query(
+      `SELECT wt.*, p.phone, p.first_name, p.last_name
+       FROM weekly_times wt
+       JOIN players p ON p.id = wt.player_id
+       WHERE wt.day_of_week = $1 AND wt.is_active = true AND wt.interval_days IS NULL`,
+      [dayNum],
+    )
+    const wts = wtsResult.rows
+    if (!wts.length) continue
 
     for (const wt of wts) {
-      const { data: booking } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('scheduled_date', dateStr)
-        .eq('scheduled_time', wt.time)
-        .single()
-
+      const bookingResult = await postgresPool.query(
+        `SELECT * FROM bookings WHERE scheduled_date = $1 AND scheduled_time = $2`,
+        [dateStr, wt.time],
+      )
+      const booking = bookingResult.rows[0]
       if (!booking || booking.host_confirmed) continue
 
-      const { data: lastMsg } = await supabase
-        .from('messages')
-        .select('sent_at')
-        .eq('booking_id', booking.id)
-        .eq('player_id', wt.player_id)
-        .eq('direction', 'outgoing')
-        .order('sent_at', { ascending: false })
-        .limit(1)
-        .single()
+      const lastMsgResult = await postgresPool.query(
+        `SELECT sent_at FROM messages
+         WHERE booking_id = $1 AND player_id = $2 AND direction = 'outgoing'
+         ORDER BY sent_at DESC LIMIT 1`,
+        [booking.id, wt.player_id as string],
+      )
 
-      if (lastMsg) {
-        const hours = (Date.now() - new Date(lastMsg.sent_at).getTime()) / (1000 * 60 * 60)
+      if (lastMsgResult.rows[0]) {
+        const hours = (Date.now() - new Date(lastMsgResult.rows[0].sent_at).getTime()) / (1000 * 60 * 60)
         if (hours < 5) continue
       }
 
-      const player = wt.player
-      if (!player?.phone) continue
+      if (!wt.phone) continue
 
-      const msg = `Hej! Påminnelse - kan du spela padel ${getSwedishDate(dateStr)} kl ${wt.time}? Svara ja/nej.`
+      const firstName = wt.first_name || 'spelare'
+      const msg = `Hej! Påminnelse - kan du spela padel ${getSwedishDate(dateStr)} kl ${wt.time as string}? Svara ja/nej.`
 
       try {
-        await smsClient.sendMessage(player.phone, msg)
-        await supabase.from('messages').insert({
-          booking_id: booking.id,
-          player_id: wt.player_id,
-          direction: 'outgoing',
-          content: msg,
-          invite_round: 2,
-        })
-        await sendToAdmin(`📨 Påminnelse till ${player.name}`)
+        await smsClient.sendMessage(wt.phone, msg)
+        await postgresPool.query(
+          `INSERT INTO messages (booking_id, player_id, direction, content, invite_round)
+           VALUES ($1, $2, 'outgoing', $3, 2)`,
+          [booking.id, wt.player_id as string, msg],
+        )
+        await sendToAdmin(`📨 Påminnelse till ${firstName}`)
       } catch (e) {
         console.error('Reminder failed:', e)
       }
@@ -179,7 +171,7 @@ async function sendHostReminders() {
 }
 
 async function sendPlayerInvites() {
-  const { bookingService, smsClient, supabase } = getServices()
+  const { bookingService, smsClient } = getServices()
   const round = getRound()
 
   await sendToAdmin(`📨 Spelarinbjudningar (runda ${round})...`)
@@ -190,77 +182,84 @@ async function sendPlayerInvites() {
     const dateStr = target.toISOString().split('T')[0]
     const dayNum = target.getDay()
 
-    const { data: wts } = await supabase
-      .from('weekly_times')
-      .select('*, player:players(*)')
-      .eq('day_of_week', dayNum)
-      .eq('is_active', true)
-
-    if (!wts?.length) continue
+    const wtsResult = await postgresPool.query(
+      `SELECT wt.*, p.phone, p.first_name, p.last_name
+       FROM weekly_times wt
+       JOIN players p ON p.id = wt.player_id
+       WHERE wt.day_of_week = $1 AND wt.is_active = true AND wt.interval_days IS NULL`,
+      [dayNum],
+    )
+    const wts = wtsResult.rows
+    if (!wts.length) continue
 
     for (const wt of wts) {
-      const { data: booking } = await supabase
-        .from('bookings')
-        .select('*, booked_players(*, player:players(*))')
-        .eq('scheduled_date', dateStr)
-        .eq('scheduled_time', wt.time)
-        .single()
+      const bookingResult = await postgresPool.query(
+        `SELECT b.*, array_agg(json_build_object('id', bp.id, 'player_id', bp.player_id, 'status', bp.status))
+               FILTER (WHERE bp.id IS NOT NULL) as booked_players_arr
+         FROM bookings b
+         LEFT JOIN booked_players bp ON bp.booking_id = b.id
+         WHERE b.scheduled_date = $1 AND b.scheduled_time = $2
+         GROUP BY b.id`,
+        [dateStr, wt.time as string],
+      )
+      const booking = bookingResult.rows[0]
 
       if (!booking || !booking.host_confirmed) continue
       if (booking.status === 'confirmed') continue
 
-      const confirmed = booking.booked_players?.filter(p => p.status === 'confirmed').length || 0
+      const confirmed = (booking.booked_players_arr || [])
+        .filter((p: any) => p.status === 'confirmed').length
 
       if (confirmed >= 4) {
-        await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', booking.id)
-        await bookingService.notifyAllPlayers(booking)
+        await postgresPool.query(
+          `UPDATE bookings SET status = 'confirmed' WHERE id = $1`,
+          [booking.id],
+        )
         await sendToAdmin(`🎉 ${dateStr} ${wt.time} fullbemannad!`)
         continue
       }
 
-      await sendInvitesForBooking(booking, dateStr, wt.time, confirmed, round)
+      await sendInvitesForBooking(booking, dateStr, wt.time!, confirmed, round)
     }
   }
 }
 
 async function sendInvitesForBooking(booking: any, dateStr: string, time: string, confirmed: number, round: number) {
-  const { bookingService, smsClient, supabase } = getServices()
-  const { data: bp } = await supabase
-    .from('booked_players')
-    .select('player_id, status')
-    .eq('booking_id', booking.id)
+  const { bookingService, smsClient } = getServices()
 
-  const contacted = new Set(bp?.map(p => p.player_id) || [])
+  const bpResult = await postgresPool.query(
+    `SELECT player_id, status FROM booked_players WHERE booking_id = $1`,
+    [booking.id],
+  )
+  const contacted = new Set(bpResult.rows.map((p) => p.player_id))
   const slots = 4 - confirmed
   if (slots <= 0) return
 
   const candidates = await bookingService.getEligibleCandidates(booking.id, 1200, dateStr, time)
-  const newCands = candidates.filter(c => !contacted.has(c.player.id))
+  const newCands = candidates.filter((c) => !contacted.has(c.player.id))
   const top = newCands.slice(0, slots * 3)
 
   let sent = 0
 
   for (let i = 0; i < top.length && sent < slots; i++) {
     const cand = top[i]
+    if (!cand) continue
     if (cand.probability < (slots - i) / 36) continue
 
     try {
       await bookingService.invitePlayer(booking.id, cand.player.id, sent + 1)
-      const msg = await generateInviteMessage(cand.player.name, dateStr, time, undefined, booking.id)
+      const firstName = cand.player.first_name || 'spelare'
+      const msg = await generateInviteMessage(firstName, dateStr, time, undefined, booking.id)
       await smsClient.sendMessage(cand.player.phone, msg)
-      await supabase.from('messages').insert({
-        booking_id: booking.id,
-        player_id: cand.player.id,
-        direction: 'outgoing',
-        content: msg,
-        invite_round: round,
-      })
+      await postgresPool.query(
+        `INSERT INTO messages (booking_id, player_id, direction, content, invite_round)
+         VALUES ($1, $2, 'outgoing', $3, $4)`,
+        [booking.id, cand.player.id, msg, round],
+      )
       sent++
-      await new Promise(r => setTimeout(r, 1000))
+      await new Promise((r) => setTimeout(r, 1000))
     } catch (e) {
-      console.error('Invit error:', e)
+      console.error('Invite failed:', e)
     }
   }
-
-  await sendToAdmin(`📨 ${dateStr} ${time}: ${sent} nya. ${confirmed}/4 klara.`)
 }
