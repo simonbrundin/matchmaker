@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: matchmaker-dev-postgres
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: matchmaker
+      POSTGRES_PASSWORD: matchmaker
+      POSTGRES_DB: matchmaker
+    volumes:
+      - matchmaker-postgres-data:/var/lib/postgresql/data
+      - ../../prod/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matchmaker -d matchmaker"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.dev
+    container_name: matchmaker-dev-app
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://matchmaker:matchmaker@postgres:5432/matchmaker
+    volumes:
+      - ../../app:/app/app
+      - ../../server:/app/server
+      - ../../nuxt.config.ts:/app/nuxt.config.ts
+      - /app/node_modules
+    command: ["bun", "run", "dev", "--host", "0.0.0.0"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  matchmaker-postgres-data:

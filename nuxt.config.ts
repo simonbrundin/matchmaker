@@ -2,12 +2,12 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
 
-  modules: ["@nuxtjs/supabase", "@nuxt/ui", "@nuxt/content"],
+  modules: ["@nuxt/ui", "@nuxt/content", "@nuxtjs/color-mode"],
   css: ["~/assets/css/main.css"],
 
   components: [
     {
-      path: '~/components',
+      path: "~/components",
       pathPrefix: false,
     },
   ],
@@ -32,33 +32,17 @@ export default defineNuxtConfig({
     },
   },
 
-  supabase: {
-    redirect: false,
-    redirectOptions: {
-      exclude: ["/api/**"],
-    },
-  },
-
-  nitro: {
-    devWorker: {
-      reuse: true,
-    },
+  colorMode: {
+    preference: "dark",
+    fallback: "light",
   },
 
   runtimeConfig: {
-    supabaseServiceKey:
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY,
     smsGatewayUrl: process.env.SMS_GATEWAY_URL,
     smsGatewayUsername: process.env.SMS_GATEWAY_USERNAME,
     smsGatewayPassword: process.env.SMS_GATEWAY_PASSWORD,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     openaiApiKey: process.env.OPENAI_API_KEY,
     adminTelegramChatId: process.env.ADMIN_TELEGRAM_CHAT_ID,
-
-    public: {
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseKey: process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY,
-    },
   },
 });
-

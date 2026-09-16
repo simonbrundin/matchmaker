@@ -1,0 +1,14 @@
+# Tiltfile for Matchmaker Development Environment
+
+config.define_string('mode', args=True, usage='Development mode: local or kubernetes (default: local)')
+cfg = config.parse()
+mode = cfg.get('mode', 'local')
+
+print('==========================================')
+print('Matchmaker Development Mode: ' + mode)
+print('==========================================')
+
+if mode == 'kubernetes':
+    load_dynamic('./Tiltfile.kubernetes')
+else:
+    load_dynamic('./Tiltfile.local')

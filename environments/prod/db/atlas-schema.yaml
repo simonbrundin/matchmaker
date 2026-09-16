@@ -1,0 +1,16 @@
+apiVersion: db.atlasgo.io/v1alpha1
+kind: AtlasSchema
+metadata:
+  name: matchmaker-db-schema
+  namespace: matchmaker
+spec:
+  urlFrom:
+    secretKeyRef:
+      key: uri
+      name: matchmaker-db-admin
+  schema:
+    configMapKeyRef:
+      key: schema.sql
+      name: matchmaker-db-schema
+  schemas:
+    - "public"

@@ -1,0 +1,58 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: matchmaker-db
+  namespace: matchmaker
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 10Gi
+    storageClass: longhorn
+    persistentVolumeClaimName: ""
+
+  bootstrap:
+    initdb:
+      database: matchmaker
+      owner: matchmaker
+      secret:
+        name: matchmaker-db-user
+
+  managed:
+    roles:
+      - name: matchmaker
+        ensure: present
+        passwordSecret:
+          name: matchmaker-db-user
+
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://backups.simonbrundin.com/matchmaker/
+      s3Credentials:
+        inheritFromARN: ""
+        secret:
+          name: matchmaker-s3-credentials
+      retentionPolicy: 30d
+
+  monitoring:
+    enablePodMonitor: true
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: matchmaker-db-user
+  namespace: matchmaker
+stringData:
+  password: REPLACE_WITH_GENERATED_PASSWORD
+type: Opaque

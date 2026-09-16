@@ -1,0 +1,9 @@
+# Local Development Mode
+# Runs PostgreSQL database for testing
+
+docker_compose('./docker-compose.yml')
+
+dc_resource(
+  'postgres',
+  labels=['Database'],
+)

@@ -1,0 +1,73 @@
+# ------------------------------------------------------------------
+# Kubernetes Development Mode
+# Runs all services in remote Kubernetes cluster
+# ------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# Tillåt remote cluster
+# ------------------------------------------------------------------
+
+allow_k8s_contexts('teleport.simonbrundin.com-cluster1')
+
+# ------------------------------------------------------------------
+# Sätt namespace
+# ------------------------------------------------------------------
+
+namespace = k8s_namespace()
+
+# ------------------------------------------------------------------
+# Setup docker registry
+# ------------------------------------------------------------------
+
+# Använd ttl.sh - ett anonymt, ephemeral registry som automatiskt raderar images
+# Images raderas efter 1 timme (default). Perfekt för dev - ingen auth behövs
+print('Namespace: ' + namespace)
+default_registry('ttl.sh/' + namespace)
+
+# ------------------------------------------------------------------
+# Bygg image för app
+# ------------------------------------------------------------------
+
+docker_build(
+    'matchmaker',
+    '../..',
+    dockerfile='../..//Dockerfile.dev',
+    extra_tag='matchmaker:dev',
+    live_update=[
+        fall_back_on(['../../package.json', '../../pnpm-lock.yaml']),
+        sync('../../app', '/app/app'),
+        sync('../../server', '/app/server'),
+        sync('../../nuxt.config.ts', '/app/nuxt.config.ts'),
+    ],
+)
+
+# ------------------------------------------------------------------
+# Deploy app i kluster
+# ------------------------------------------------------------------
+
+k8s_yaml(kustomize('./'))
+
+# ------------------------------------------------------------------
+# PostgreSQL Database
+# ------------------------------------------------------------------
+
+k8s_yaml(kustomize('./db'))
+
+k8s_resource(
+  workload='postgres',
+  new_name='PostgreSQL',
+  port_forwards='5432:5432',
+  labels=['Database'],
+)
+
+# ------------------------------------------------------------------
+# Resurser i Tilt UI
+# ------------------------------------------------------------------
+
+k8s_resource(
+  workload='matchmaker',
+  new_name='Matchmaker',
+  port_forwards=3000,
+  labels=['App'],
+  resource_deps=['PostgreSQL'],
+)
