@@ -6,7 +6,8 @@
     </div>
 
     <UCard>
-      <UTable :data="bookings" :columns="columns">
+      <LoadingState v-if="isLoading" label="Laddar meddelanden..." />
+      <UTable v-else :data="bookings" :columns="columns">
         <template #scheduled_date-cell="{ row }">
           {{ formatDate(row.original?.scheduled_date ?? row.scheduled_date) }}
         </template>
@@ -48,7 +49,7 @@
           <UButton icon="i-lucide-eye" variant="ghost" size="md" @click="viewMessages(row.original ?? row)" />
         </template>
       </UTable>
-      <div v-if="bookings.length === 0" class="text-center py-8 text-muted">
+      <div v-if="!isLoading && bookings.length === 0" class="text-center py-8 text-muted">
         Inga meddelanden hittades
       </div>
     </UCard>
@@ -113,6 +114,9 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({ layout: 'default' })
+
+
 import { playerFullName } from '~/utils'
 interface Message {
   id: string
@@ -145,6 +149,7 @@ interface Booking {
 }
 
 const bookings = ref<Booking[]>([])
+const isLoading = ref(false)
 const selectedBooking = ref<Booking | null>(null)
 const isModalOpen = ref(false)
 
@@ -164,9 +169,14 @@ const columns = [
 ]
 
 async function loadBookings() {
-  const { data } = await useFetch('/api/admin/messages')
-  if (data.value?.messages) {
-    bookings.value = data.value.messages as Booking[]
+  isLoading.value = true
+  try {
+    const { data } = await useFetch('/api/admin/messages')
+    if (data.value?.messages) {
+      bookings.value = data.value.messages as Booking[]
+    }
+  } finally {
+    isLoading.value = false
   }
 }
 

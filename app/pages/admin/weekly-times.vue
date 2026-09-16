@@ -5,7 +5,10 @@
         <h1 class="text-2xl font-bold">Återkommande tider</h1>
         <p class="text-muted">Spelare med stående tider</p>
       </div>
-      <WeeklyTimesAddScheduleModal ref="addModal" @created="loadData" />
+      <div class="flex items-center gap-4">
+        <USwitch v-model="showAll" label="Visa inaktiva" />
+        <WeeklyTimesAddScheduleModal ref="addModal" @created="loadData" />
+      </div>
     </div>
 
     <div v-if="summary" class="grid grid-cols-4 gap-4 mb-6">
@@ -36,7 +39,8 @@
     </div>
 
     <UCard>
-      <UTable :key="key" :data="schedules" :columns="columns" :row-key="(row: any) => row.id">
+      <LoadingState v-if="isLoading" label="Laddar återkommande tider..." />
+      <UTable v-else :key="key" :data="schedules" :columns="columns" :row-key="(row: any) => row.id">
         <template #actions-cell="{ row }">
           <div class="flex gap-2">
             <UButton icon="i-lucide-users" variant="ghost" size="xs" @click="openFriendsModal(row)" />
@@ -45,21 +49,26 @@
           </div>
         </template>
       </UTable>
-      <div v-if="schedules.length === 0" class="text-center py-8 text-muted">
+      <div v-if="!isLoading && schedules.length === 0" class="text-center py-8 text-muted">
         Inga återkommande tider hittades
       </div>
     </UCard>
 
-    <WeeklyTimesEditScheduleModal ref="editModal" @updated="loadData" />
-    <WeeklyTimesDeleteScheduleModal ref="deleteModal" :schedule="selectedSchedule" @deleted="loadData" />
+    <EditScheduleModal ref="editModal" @updated="loadData" />
+    <DeleteScheduleModal ref="deleteModal" :schedule="selectedSchedule" @deleted="loadData" />
     <FriendsListModal v-if="friendsPlayer" ref="friendsModal" :player="friendsPlayer" />
   </div>
 </template>
 
 <script setup lang="ts">
+definePageMeta({ layout: 'default' })
+
+
 import { playerFullName } from '~/utils'
 import FriendsListModal from '~/components/players/FriendsListModal.vue'
 import WeeklyTimesAddScheduleModal from '~/components/weekly-times/AddScheduleModal.vue'
+import EditScheduleModal from '~/components/weekly-times/EditScheduleModal.vue'
+import DeleteScheduleModal from '~/components/weekly-times/DeleteScheduleModal.vue'
 interface Summary {
   activePlayers: number
   weekdaySchedules: number
@@ -74,7 +83,12 @@ const columns = [
   { id: 'parity', header: 'Paritet', accessorKey: 'parity' },
   { id: 'time_display', header: 'Tid', accessorKey: 'time_display' },
   { id: 'start_date', header: 'Start', accessorKey: 'start_date' },
-  { id: 'is_active', header: 'Status', accessorKey: 'is_active', cell: ({ row }: any) => row.is_active ? 'Aktiv' : 'Inaktiv' },
+  {
+    id: 'is_active',
+    header: 'Status',
+    accessorKey: 'is_active',
+    cell: ({ row }: any) => (row.original?.is_active ?? row.is_active) ? 'Aktiv' : 'Inaktiv'
+  },
   { id: 'actions', header: '', accessorKey: 'actions' }
 ]
 
@@ -105,6 +119,8 @@ function formatParity(parity: string | null): string {
 }
 
 const key = ref(0)
+const showAll = ref(false)
+const isLoading = ref(false)
 const schedules = ref<any[]>([])
 const summary = ref<Summary | null>(null)
 const addModal = ref<any>(null)
@@ -115,33 +131,41 @@ const friendsModal = ref<any>(null)
 const friendsPlayer = ref<{ id: string; first_name: string; last_name: string | null; elo: number } | null>(null)
 
 async function loadData() {
-  const data: any = await $fetch('/api/admin/weekly-times')
-  if (data?.schedules) {
-    schedules.value = data.schedules.map((s: any) => ({
-      id: s.id,
-      player_id: s.player?.id || '',
-      weekday: s.weekday,
-      week_parity: s.week_parity,
-      interval_days: s.interval_days,
-      start_date: s.start_date,
-      is_active: s.is_active ? 'Aktiv' : 'Inaktiv',
-      player_name: s.player ? playerFullName(s.player) : '',
-      player_phone: s.player?.phone || '',
-      player_elo: s.player?.elo || 0,
-      player: s.player,
-      time_display: s.time?.substring(0, 5) || '',
-      type: s.interval_days ? 'Intervall' : 'Veckobaserad',
-      schedule: s.interval_days
-        ? `Var ${s.interval_days}:e dag`
-        : formatWeekday(s.weekday),
-      parity: s.interval_days ? '-' : formatParity(s.week_parity)
-    }))
+  isLoading.value = true
+  try {
+    const query = showAll.value ? '?active=all' : ''
+    const data: any = await $fetch(`/api/admin/weekly-times${query}`)
+    if (data?.schedules) {
+      schedules.value = data.schedules.map((s: any) => ({
+        id: s.id,
+        player_id: s.player?.id || '',
+        weekday: s.weekday,
+        week_parity: s.week_parity,
+        interval_days: s.interval_days,
+        start_date: s.start_date,
+        is_active: Boolean(s.is_active),
+        player_name: s.player ? playerFullName(s.player) : '',
+        player_phone: s.player?.phone || '',
+        player_elo: s.player?.elo || 0,
+        player: s.player,
+        time_display: s.time?.substring(0, 5) || '',
+        type: s.interval_days ? 'Intervall' : 'Veckobaserad',
+        schedule: s.interval_days
+          ? `Var ${s.interval_days}:e dag`
+          : formatWeekday(s.weekday),
+        parity: s.interval_days ? '-' : formatParity(s.week_parity)
+      }))
+    }
+    if (data?.summary) {
+      summary.value = data.summary
+    }
+    key.value++
+  } finally {
+    isLoading.value = false
   }
-  if (data?.summary) {
-    summary.value = data.summary
-  }
-  key.value++
 }
+
+watch(showAll, loadData)
 
 onMounted(loadData)
 
@@ -156,7 +180,7 @@ function openEditModal(row: any) {
     week_parity: schedule.week_parity || 'all',
     interval_days: schedule.interval_days || null,
     start_date: schedule.start_date || null,
-    is_active: schedule.is_active === 'Aktiv'
+    is_active: Boolean(schedule.is_active)
   })
 }
 

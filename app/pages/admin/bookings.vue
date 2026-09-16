@@ -1,3 +1,104 @@
+<script setup lang="ts">
+definePageMeta({ layout: 'default' })
+
+import { h } from 'vue'
+import { playerFullName } from '~/utils'
+import { UBadge, UButton } from '#components'
+import type { TableColumn } from '@nuxt/ui'
+
+interface Booking {
+  id: string
+  scheduled_date: string
+  scheduled_time: string
+  status: string
+  host_player_id: string
+  booked_players: any[]
+}
+
+const bookings = ref<Booking[]>([])
+const isLoading = ref(false)
+const selectedBooking = ref<Booking | null>(null)
+const isModalOpen = ref(false)
+
+function viewDetails(booking: Booking) {
+  selectedBooking.value = booking
+  isModalOpen.value = true
+}
+
+const columns: TableColumn<Booking>[] = [
+  {
+    accessorKey: 'scheduled_date',
+    header: 'Datum',
+    cell: ({ row }) => formatDate(row.original.scheduled_date)
+  },
+  {
+    accessorKey: 'scheduled_time',
+    header: 'Tid'
+  },
+  {
+    id: 'status',
+    header: 'Status'
+  },
+  {
+    id: 'host',
+    header: 'Host',
+    cell: ({ row }) => getHostName(row.original)
+  },
+  {
+    id: 'players',
+    header: 'Spelare'
+  },
+  {
+    id: 'actions',
+    header: ''
+  }
+]
+
+async function loadBookings() {
+  isLoading.value = true
+  try {
+    const { data } = await useFetch('/api/admin/bookings')
+    if (data.value?.bookings) {
+      bookings.value = data.value.bookings as Booking[]
+    }
+  } finally {
+    isLoading.value = false
+  }
+}
+
+function getHostName(booking: Booking): string {
+  if (!booking.booked_players || booking.booked_players.length === 0) return 'Okänd'
+  const host = booking.booked_players[0]
+  return host?.player ? playerFullName(host.player) : 'Okänd'
+}
+
+function formatDate(dateStr: string): string {
+  return dateStr || ''
+}
+
+function statusColor(status: string) {
+  const colors: Record<string, string> = {
+    pending: 'warning',
+    confirmed: 'success',
+    cancelled: 'error',
+    completed: 'neutral'
+  }
+  return colors[status] || 'neutral'
+}
+
+function playerStatusColor(status: string) {
+  const colors: Record<string, string> = {
+    confirmed: 'success',
+    invited: 'warning',
+    declined: 'error',
+    waitlist: 'neutral'
+  }
+  return colors[status] || 'neutral'
+}
+
+onMounted(loadBookings)
+</script>
+
 <template>
   <div class="p-6">
     <div class="mb-6">
@@ -6,7 +107,8 @@
     </div>
 
     <UCard>
-      <UTable :data="bookings" :columns="columns">
+      <LoadingState v-if="isLoading" label="Laddar bokningar..." />
+      <UTable v-else :data="bookings" :columns="columns">
         <template #status-cell="{ row }">
           <UBadge :color="statusColor(row.original.status)" variant="subtle">
             {{ row.original.status }}
@@ -32,7 +134,7 @@
           <UButton icon="i-lucide-eye" variant="ghost" size="xs" @click="viewDetails(row.original)" />
         </template>
       </UTable>
-      <div v-if="bookings.length === 0" class="text-center py-8 text-muted">
+      <div v-if="!isLoading && bookings.length === 0" class="text-center py-8 text-muted">
         Inga bokningar
       </div>
     </UCard>
@@ -91,87 +193,3 @@
     </UModal>
   </div>
 </template>
-
-<script setup lang="ts">
-import { h } from 'vue'
-import { playerFullName } from '~/utils'
-import { UBadge, UButton } from '#components'
-import type { TableColumn } from '@nuxt/ui'
-interface Booking {
-  id: string
-  scheduled_date: string
-  scheduled_time: string
-  status: string
-  host_player_id: string
-  booked_players: any[]
-}
-const bookings = ref<Booking[]>([])
-const selectedBooking = ref<Booking | null>(null)
-const isModalOpen = ref(false)
-
-function viewDetails(booking: Booking) {
-  selectedBooking.value = booking
-  isModalOpen.value = true
-}
-const columns: TableColumn<Booking>[] = [
-  {
-    accessorKey: 'scheduled_date',
-    header: 'Datum',
-    cell: ({ row }) => formatDate(row.original.scheduled_date)
-  },
-  {
-    accessorKey: 'scheduled_time',
-    header: 'Tid'
-  },
-  {
-    id: 'status',
-    header: 'Status'
-  },
-  {
-    id: 'host',
-    header: 'Host',
-    cell: ({ row }) => getHostName(row.original)
-  },
-  {
-    id: 'players',
-    header: 'Spelare'
-  },
-  {
-    id: 'actions',
-    header: ''
-  }
-]
-async function loadBookings() {
-  const { data } = await useFetch('/api/admin/bookings')
-  if (data.value?.bookings) {
-    bookings.value = data.value.bookings as Booking[]
-  }
-}
-function getHostName(booking: Booking): string {
-  if (!booking.booked_players || booking.booked_players.length === 0) return 'Okänd'
-  const host = booking.booked_players[0]
-  return host?.player ? playerFullName(host.player) : 'Okänd'
-}
-function formatDate(dateStr: string): string {
-  return dateStr || ''
-}
-function statusColor(status: string) {
-  const colors: Record<string, string> = {
-    pending: 'warning',
-    confirmed: 'success',
-    cancelled: 'error',
-    completed: 'neutral'
-  }
-  return colors[status] || 'neutral'
-}
-function playerStatusColor(status: string) {
-  const colors: Record<string, string> = {
-    confirmed: 'success',
-    invited: 'warning',
-    declined: 'error',
-    waitlist: 'neutral'
-  }
-  return colors[status] || 'neutral'
-}
-onMounted(loadBookings)
-</script>

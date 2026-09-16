@@ -82,6 +82,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     const payload: any = {
       player_id: state.player_id,
       time: state.time,
+      type: state.type,
       is_active: state.is_active ?? true
     }
 

@@ -1,94 +1,6 @@
-<template>
-  <div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-      <div>
-        <h1 class="text-2xl font-bold">Spelare</h1>
-        <p class="text-muted">Hantera spelare i systemet</p>
-      </div>
-      <UButton label="Lägg till spelare" icon="i-lucide-plus" @click="showAddModal = true" />
-    </div>
-
-    <div class="mb-4">
-      <UInput v-model="search" @update:model-value="debouncedSearch" placeholder="Sök på namn eller telefon..."
-        icon="i-lucide-search">
-        <template #trailing>
-          <UButton v-if="search" icon="i-lucide-x" variant="ghost" size="xs" @click="search = ''; loadPlayers()" />
-        </template>
-      </UInput>
-    </div>
-
-    <UCard>
-      <UTable v-model:sorting="sorting" :data="players" :columns="columns">
-        <template #actions-cell="{ row }">
-          <div class="flex gap-2">
-            <UButton icon="i-lucide-users" variant="ghost" size="xs" @click="openFriendsModal(row)" />
-            <UButton label="Redigera" variant="outline" size="xs" @click="openEditModal(row)" />
-            <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="openDeleteModal(row)" />
-          </div>
-        </template>
-      </UTable>
-      <div v-if="players.length === 0" class="text-center py-8 text-muted">
-        Inga spelare hittades
-      </div>
-    </UCard>
-
-    <UModal v-model:open="showAddModal" title="Lägg till spelare">
-      <template #body>
-        <div class="space-y-4">
-          <UFormField label="Förnamn">
-            <UInput v-model="newPlayer.first_name" placeholder="Förnamn" />
-          </UFormField>
-          <UFormField label="Efternamn">
-            <UInput v-model="newPlayer.last_name" placeholder="Efternamn (valfritt)" />
-          </UFormField>
-          <UFormField label="Telefon">
-            <UInput v-model="newPlayer.phone" placeholder="+46701234567" />
-          </UFormField>
-          <UFormField label="ELO">
-            <UInput v-model="newPlayer.elo" type="number" placeholder="1200" />
-          </UFormField>
-        </div>
-      </template>
-
-      <template #footer>
-        <UButton label="Avbryt" variant="outline" @click="showAddModal = false" />
-        <UButton label="Lägg till" color="primary" @click="addPlayer" />
-      </template>
-    </UModal>
-
-    <UModal v-model:open="showEditModal" title="Redigera spelare">
-      <template #body>
-        <div class="space-y-4">
-          <UFormField label="Förnamn">
-            <UInput v-model="editData.first_name" placeholder="Förnamn" />
-          </UFormField>
-          <UFormField label="Efternamn">
-            <UInput v-model="editData.last_name" placeholder="Efternamn (valfritt)" />
-          </UFormField>
-          <UFormField label="Telefon">
-            <UInput v-model="editData.phone" placeholder="+46701234567" />
-          </UFormField>
-          <UFormField label="ELO">
-            <UInput v-model="editData.elo" type="number" placeholder="1200" />
-          </UFormField>
-          <UFormField label="Aktiv">
-            <USwitch v-model="editData.is_active" @click.stop />
-          </UFormField>
-        </div>
-      </template>
-
-      <template #footer>
-        <UButton label="Avbryt" variant="outline" type="button" @click="showEditModal = false" />
-        <UButton label="Spara" color="primary" type="button" @click="saveEdit" />
-      </template>
-    </UModal>
-
-    <PlayersDeleteModal ref="deleteModal" :player="deleteData" @deleted="loadPlayers" />
-    <FriendsListModal ref="friendsModal" :player="friendsPlayer" />
-  </div>
-</template>
-
 <script setup lang="ts">
+definePageMeta({ layout: 'default' })
+
 import { h, resolveComponent } from 'vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { playerFullName } from '~/utils'
@@ -106,6 +18,7 @@ interface Player {
 }
 
 const players = ref<Player[]>([])
+const isLoading = ref(false)
 const search = ref('')
 const sorting = ref<{ id: string; desc: boolean }[]>([])
 const showAddModal = ref(false)
@@ -205,6 +118,7 @@ const columns: ColumnDef<Player>[] = [
 let searchTimeout: NodeJS.Timeout
 
 async function loadPlayers() {
+  isLoading.value = true
   const params = new URLSearchParams()
   if (search.value) params.set('search', search.value)
   if (sorting.value.length > 0) {
@@ -219,9 +133,13 @@ async function loadPlayers() {
     params.set('sort', keyToColumn[s.id] || 'last_name')
     params.set('direction', s.desc ? 'desc' : 'asc')
   }
-  const result = await $fetch<{ players: Player[] }>(`/api/admin/players?${params.toString()}`)
-  if (result?.players) {
-    players.value = result.players
+  try {
+    const result = await $fetch<{ players: Player[] }>(`/api/admin/players?${params.toString()}`)
+    if (result?.players) {
+      players.value = result.players
+    }
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -268,14 +186,12 @@ function openEditModal(row: any) {
 
 function openFriendsModal(row: any) {
   const player = row.original || row
-  console.log('openFriendsModal called', player)
   friendsPlayer.value = {
     id: String(player.id),
     first_name: String(player.first_name || ''),
     last_name: player.last_name != null ? String(player.last_name) : null,
     elo: Number(player.elo) || 0
   }
-  console.log('friendsPlayer', friendsPlayer.value)
   friendsModal.value?.openModal(friendsPlayer.value)
 }
 
@@ -288,14 +204,13 @@ async function saveEdit() {
       elo: editData.elo === '' ? null : editData.elo,
       is_active: editData.is_active
     }
-    const result = await $fetch(`/api/admin/players/${editData.id}`, {
+    await $fetch(`/api/admin/players/${editData.id}`, {
       method: 'PUT',
       body: payload
     })
     showEditModal.value = false
     loadPlayers()
   } catch (err: any) {
-    console.error('Failed to save:', err)
     const message = err?.data?.message || err?.message || 'Okänt fel'
     alert('Kunde inte spara: ' + message)
   }
@@ -307,3 +222,94 @@ watch(sorting, () => {
   loadPlayers()
 }, { deep: true })
 </script>
+
+<template>
+  <div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl font-bold">Spelare</h1>
+        <p class="text-muted">Hantera spelare i systemet</p>
+      </div>
+      <UButton label="Lägg till spelare" icon="i-lucide-plus" @click="showAddModal = true" />
+    </div>
+
+    <div class="mb-4">
+      <UInput v-model="search" @update:model-value="debouncedSearch" placeholder="Sök på namn eller telefon..."
+        icon="i-lucide-search">
+        <template #trailing>
+          <UButton v-if="search" icon="i-lucide-x" variant="ghost" size="xs" @click="search = ''; loadPlayers()" />
+        </template>
+      </UInput>
+    </div>
+
+    <UCard>
+      <LoadingState v-if="isLoading" label="Laddar spelare..." />
+      <UTable v-else v-model:sorting="sorting" :data="players" :columns="columns">
+        <template #actions-cell="{ row }">
+          <div class="flex gap-2">
+            <UButton icon="i-lucide-users" variant="ghost" size="xs" @click="openFriendsModal(row)" />
+            <UButton label="Redigera" variant="outline" size="xs" @click="openEditModal(row)" />
+            <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="openDeleteModal(row)" />
+          </div>
+        </template>
+      </UTable>
+      <div v-if="!isLoading && players.length === 0" class="text-center py-8 text-muted">
+        Inga spelare hittades
+      </div>
+    </UCard>
+
+    <UModal v-model:open="showAddModal" title="Lägg till spelare">
+      <template #body>
+        <div class="space-y-4">
+          <UFormField label="Förnamn">
+            <UInput v-model="newPlayer.first_name" placeholder="Förnamn" />
+          </UFormField>
+          <UFormField label="Efternamn">
+            <UInput v-model="newPlayer.last_name" placeholder="Efternamn (valfritt)" />
+          </UFormField>
+          <UFormField label="Telefon">
+            <UInput v-model="newPlayer.phone" placeholder="+46701234567" />
+          </UFormField>
+          <UFormField label="ELO">
+            <UInput v-model="newPlayer.elo" type="number" placeholder="1200" />
+          </UFormField>
+        </div>
+      </template>
+
+      <template #footer>
+        <UButton label="Avbryt" variant="outline" @click="showAddModal = false" />
+        <UButton label="Lägg till" color="primary" @click="addPlayer" />
+      </template>
+    </UModal>
+
+    <UModal v-model:open="showEditModal" title="Redigera spelare">
+      <template #body>
+        <div class="space-y-4">
+          <UFormField label="Förnamn">
+            <UInput v-model="editData.first_name" placeholder="Förnamn" />
+          </UFormField>
+          <UFormField label="Efternamn">
+            <UInput v-model="editData.last_name" placeholder="Efternamn (valfritt)" />
+          </UFormField>
+          <UFormField label="Telefon">
+            <UInput v-model="editData.phone" placeholder="+46701234567" />
+          </UFormField>
+          <UFormField label="ELO">
+            <UInput v-model="editData.elo" type="number" placeholder="1200" />
+          </UFormField>
+          <UFormField label="Aktiv">
+            <USwitch v-model="editData.is_active" @click.stop />
+          </UFormField>
+        </div>
+      </template>
+
+      <template #footer>
+        <UButton label="Avbryt" variant="outline" type="button" @click="showEditModal = false" />
+        <UButton label="Spara" color="primary" type="button" @click="saveEdit" />
+      </template>
+    </UModal>
+
+    <PlayersDeleteModal ref="deleteModal" :player="deleteData" @deleted="loadPlayers" />
+    <FriendsListModal ref="friendsModal" :player="friendsPlayer" />
+  </div>
+</template>

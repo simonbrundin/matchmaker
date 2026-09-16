@@ -4,6 +4,10 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 const open = ref(false)
 
 const links = [[{
+  label: 'Hem (Publika sidan)',
+  icon: 'i-lucide-home',
+  to: '/index-landing'
+}, {
   label: 'Dashboard',
   icon: 'i-lucide-layout-dashboard',
   to: '/admin'
@@ -34,6 +38,10 @@ const links = [[{
   label: 'Dokumentation',
   icon: 'i-lucide-book-open',
   to: '/admin/dokumentation'
+}, {
+  label: 'Affisch',
+  icon: 'i-lucide-file-image',
+  to: '/poster'
 }]] satisfies NavigationMenuItem[][]
 
 const groups = computed(() => [{
