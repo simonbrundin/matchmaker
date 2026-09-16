@@ -1,17 +1,24 @@
-import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { postgresPool } from "~~/server/lib/postgres";
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
-  const friendId = getRouterParam(event, 'friendId')
-  const supabase = getSupabaseAdmin()
+  const playerId = getRouterParam(event, "id");
+  const friendId = getRouterParam(event, "friendId");
 
-  const { error } = await supabase
-    .from('friends')
-    .insert({ player_id: id, friend_id: friendId })
-
-  if (error) {
-    throw createError({ statusCode: 500, message: error.message })
+  if (!playerId || !friendId || playerId === friendId) {
+    throw createError({ statusCode: 400, message: "Ogiltiga spelar-id:n" });
   }
 
-  return { success: true }
-})
+  const client = await postgresPool.connect();
+  try {
+    await client.query(
+      `INSERT INTO friends (player_id, friend_id)
+       VALUES ($1, $2)
+       ON CONFLICT (player_id, friend_id) DO NOTHING`,
+      [playerId, friendId],
+    );
+
+    return { success: true };
+  } finally {
+    client.release();
+  }
+});

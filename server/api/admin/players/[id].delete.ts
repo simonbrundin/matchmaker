@@ -1,27 +1,19 @@
-import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { postgresPool } from "~~/server/lib/postgres";
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
-  const supabase = getSupabaseAdmin()
-
-  const { data: existing } = await supabase
-    .from('players')
-    .select('id')
-    .eq('id', id)
-    .single()
-
-  if (!existing) {
-    throw createError({ statusCode: 404, message: 'Player not found' })
+  const playerId = getRouterParam(event, "id");
+  if (!playerId) {
+    throw createError({ statusCode: 400, message: "id required" });
   }
 
-  const { error } = await supabase
-    .from('players')
-    .delete()
-    .eq('id', id)
+  const result = await postgresPool.query(
+    "DELETE FROM players WHERE id = $1 RETURNING id",
+    [playerId],
+  );
 
-  if (error) {
-    throw createError({ statusCode: 400, message: error.message })
+  if (result.rowCount === 0) {
+    throw createError({ statusCode: 404, message: "Player not found" });
   }
 
-  return { success: true }
-})
+  return { success: true };
+});

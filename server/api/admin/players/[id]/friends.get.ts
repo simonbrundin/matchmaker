@@ -1,39 +1,24 @@
-import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { postgresPool } from "~~/server/lib/postgres";
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
-  const supabase = getSupabaseAdmin()
-
-  const { data: friends, error } = await supabase
-    .from('friends')
-    .select('friend_id')
-    .eq('player_id', id)
-
-  if (error) {
-    throw createError({ statusCode: 500, message: error.message })
+  const playerId = getRouterParam(event, "id");
+  if (!playerId) {
+    throw createError({ statusCode: 400, message: "Spelar-id krävs" });
   }
 
-  if (!friends || friends.length === 0) {
-    return { friends: [] }
+  const client = await postgresPool.connect();
+  try {
+    const result = await client.query(
+      `SELECT p.id, p.first_name, p.last_name, p.elo
+       FROM friends f
+       JOIN players p ON p.id = f.friend_id
+       WHERE f.player_id = $1
+       ORDER BY p.first_name, p.last_name`,
+      [playerId],
+    );
+
+    return { friends: result.rows };
+  } finally {
+    client.release();
   }
-
-  const friendIds = friends.map(f => f.friend_id)
-
-  const { data: players, error: playersError } = await supabase
-    .from('players')
-    .select('id, first_name, last_name, elo')
-    .in('id', friendIds)
-
-  if (playersError) {
-    throw createError({ statusCode: 500, message: playersError.message })
-  }
-
-  const formattedFriends = (players || []).map(p => ({
-    id: p.id,
-    first_name: p.first_name,
-    last_name: p.last_name,
-    elo: p.elo,
-  }))
-
-  return { friends: formattedFriends }
-})
+});

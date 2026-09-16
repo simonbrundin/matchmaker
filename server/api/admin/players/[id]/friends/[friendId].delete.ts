@@ -1,19 +1,22 @@
-import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { postgresPool } from "~~/server/lib/postgres";
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
-  const friendId = getRouterParam(event, 'friendId')
-  const supabase = getSupabaseAdmin()
+  const playerId = getRouterParam(event, "id");
+  const friendId = getRouterParam(event, "friendId");
 
-  const { error } = await supabase
-    .from('friends')
-    .delete()
-    .eq('player_id', id)
-    .eq('friend_id', friendId)
-
-  if (error) {
-    throw createError({ statusCode: 500, message: error.message })
+  if (!playerId || !friendId) {
+    throw createError({ statusCode: 400, message: "Spelar-id krävs" });
   }
 
-  return { success: true }
-})
+  const client = await postgresPool.connect();
+  try {
+    await client.query(
+      "DELETE FROM friends WHERE player_id = $1 AND friend_id = $2",
+      [playerId, friendId],
+    );
+
+    return { success: true };
+  } finally {
+    client.release();
+  }
+});

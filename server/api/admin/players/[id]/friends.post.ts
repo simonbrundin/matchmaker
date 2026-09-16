@@ -1,39 +1,36 @@
-import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { postgresPool } from "~~/server/lib/postgres";
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
-  const body = await readBody<{ name: string }>(event)
-  const supabase = getSupabaseAdmin()
+  const playerId = getRouterParam(event, "id");
+  const body = await readBody<{ name?: string }>(event);
+  const searchTerm = body.name?.trim();
 
-  if (!body.name || body.name.trim().length < 2) {
-    throw createError({ statusCode: 400, message: 'Name must be at least 2 characters' })
+  if (!playerId || !searchTerm || searchTerm.length < 2) {
+    throw createError({
+      statusCode: 400,
+      message: "Namnet måste innehålla minst 2 tecken",
+    });
   }
 
-  const searchTerm = body.name.trim()
+  const client = await postgresPool.connect();
+  try {
+    const result = await client.query(
+      `SELECT p.id, p.first_name, p.last_name, p.elo
+       FROM players p
+       WHERE p.id <> $1
+         AND p.is_active = true
+         AND (p.first_name ILIKE $2 OR p.last_name ILIKE $2)
+         AND NOT EXISTS (
+           SELECT 1 FROM friends f
+           WHERE f.player_id = $1 AND f.friend_id = p.id
+         )
+       ORDER BY p.first_name, p.last_name
+       LIMIT 20`,
+      [playerId, `%${searchTerm}%`],
+    );
 
-  const { data: existingFriendIds, error: friendError } = await supabase
-    .from('friends')
-    .select('friend_id')
-    .eq('player_id', id)
-
-  if (friendError) {
-    throw createError({ statusCode: 500, message: friendError.message })
+    return { players: result.rows };
+  } finally {
+    client.release();
   }
-
-  const excludeIds = [id, ...(existingFriendIds?.map(f => f.friend_id) || [])]
-
-  const { data: players, error } = await supabase
-    .from('players')
-    .select('id, first_name, last_name, elo')
-    .not('id', 'in', `(${excludeIds.join(',')})`)
-    .or(`first_name.ilike.*${searchTerm}*,last_name.ilike.*${searchTerm}*`)
-    .order('first_name')
-    .order('last_name')
-    .limit(20)
-
-  if (error) {
-    throw createError({ statusCode: 500, message: error.message })
-  }
-
-  return { players: players || [] }
-})
+});

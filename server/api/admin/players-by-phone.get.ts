@@ -1,27 +1,21 @@
-import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { postgresPool } from "~~/server/lib/postgres";
 
 export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  const phone = query.phone as string
-
+  const phone = String(getQuery(event).phone || "");
   if (!phone) {
-    throw createError({ statusCode: 400, message: 'phone required' })
+    throw createError({ statusCode: 400, message: "phone required" });
   }
 
-  const supabase = getSupabaseAdmin()
+  const result = await postgresPool.query(
+    `SELECT id, first_name, last_name, phone, elo
+     FROM players
+     WHERE phone = $1`,
+    [phone],
+  );
 
-  const { data: player, error } = await supabase
-    .from('players')
-    .select('id, first_name, last_name, phone, elo')
-    .eq('phone', phone)
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116' || error.code === 'PGRST204') {
-      throw createError({ statusCode: 404, message: 'Player not found' })
-    }
-    throw createError({ statusCode: 400, message: error.message })
+  if (result.rowCount === 0) {
+    throw createError({ statusCode: 404, message: "Player not found" });
   }
 
-  return { player }
-})
+  return { player: result.rows[0] };
+});

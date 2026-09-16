@@ -1,35 +1,34 @@
-import { getSupabaseAdmin } from '~~/server/lib/supabase'
+import { postgresPool } from "~~/server/lib/postgres";
 
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id')
-  const body = await readBody(event)
-  const supabase = getSupabaseAdmin()
-
-  if (body.name !== undefined) {
-    body.first_name = body.name
-    delete body.name
+  const playerId = getRouterParam(event, "id");
+  if (!playerId) {
+    throw createError({ statusCode: 400, message: "id required" });
   }
 
-  const { data: existing } = await supabase
-    .from('players')
-    .select('id')
-    .eq('id', id)
-    .single()
+  const body = await readBody(event);
+  const result = await postgresPool.query(
+    `UPDATE players
+     SET first_name = COALESCE($1, first_name),
+         last_name = $2,
+         phone = COALESCE($3, phone),
+         elo = COALESCE($4, elo),
+         is_active = COALESCE($5, is_active)
+     WHERE id = $6
+     RETURNING *`,
+    [
+      body.first_name ?? body.name ?? null,
+      body.last_name ?? null,
+      body.phone ?? null,
+      body.elo ?? null,
+      body.is_active ?? null,
+      playerId,
+    ],
+  );
 
-  if (!existing) {
-    throw createError({ statusCode: 404, message: 'Player not found' })
+  if (result.rowCount === 0) {
+    throw createError({ statusCode: 404, message: "Player not found" });
   }
 
-  const { data: player, error } = await supabase
-    .from('players')
-    .update(body)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    throw createError({ statusCode: 400, message: error.message })
-  }
-
-  return { success: true, player }
-})
+  return { success: true, player: result.rows[0] };
+});
