@@ -19,7 +19,7 @@ services:
 
   app:
     build:
-      context: ../..
+      context: ../../src/nuxt
       dockerfile: Dockerfile.dev
     container_name: matchmaker-dev-app
     ports:
@@ -30,9 +30,9 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://matchmaker:matchmaker@postgres:5432/matchmaker
     volumes:
-      - ../../app:/app/app
-      - ../../server:/app/server
-      - ../../nuxt.config.ts:/app/nuxt.config.ts
+      - ../../src/nuxt/app:/app/app
+      - ../../src/nuxt/server:/app/server
+      - ../../src/nuxt/nuxt.config.ts:/app/nuxt.config.ts
       - /app/node_modules
     command: ["bun", "run", "dev", "--host", "0.0.0.0"]
     depends_on:
