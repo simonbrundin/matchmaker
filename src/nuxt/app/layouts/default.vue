@@ -28,6 +28,10 @@ const links = [[{
   icon: 'i-lucide-repeat',
   to: '/admin/weekly-times'
 }, {
+  label: 'Hallar',
+  icon: 'i-lucide-building',
+  to: '/admin/halls'
+}, {
   label: 'Kontantkort',
   icon: 'i-lucide-credit-card',
   to: '/admin/cashcard'

@@ -6,8 +6,13 @@ import { playerFullName } from '~/utils'
 const open = ref(false)
 const loading = ref(false)
 
+const { data: sportsData } = await useFetch<{ sports: Array<{ id: string; name: string; slug: string }> }>('/api/admin/sports', { default: () => ({ sports: [] }) })
+const { data: hallsData, refresh: refreshHalls } = await useFetch<{ halls: Array<{ id: string; name: string; sport_id: string; city: string | null }> }>('/api/admin/halls', { default: () => ({ halls: [] }) })
+
 const schema = z.object({
   player_id: z.string().min(1, 'Välj en spelare'),
+  sport_id: z.string().min(1, 'Välj en sport'),
+  hall_id: z.string().min(1, 'Välj en hall'),
   time: z.string().min(1, 'Ange en tid'),
   type: z.enum(['weekly', 'interval']),
   weekday: z.number().optional(),
@@ -21,6 +26,8 @@ type Schema = z.output<typeof schema>
 
 const state = reactive<Partial<Schema>>({
   player_id: '',
+  sport_id: '',
+  hall_id: '',
   time: '18:00',
   type: 'weekly',
   weekday: 1,
@@ -54,12 +61,37 @@ const parityOptions = [
   { value: 'even', label: 'Jämna veckor' }
 ]
 
+const sportOptions = computed(() =>
+  (sportsData.value?.sports ?? []).map((s) => ({ value: s.id, label: s.name }))
+)
+
+const hallOptions = computed(() =>
+  (hallsData.value?.halls ?? [])
+    .filter((h) => !state.sport_id || h.sport_id === state.sport_id)
+    .map((h) => ({
+      value: h.id,
+      label: h.city ? `${h.name} (${h.city})` : h.name,
+    }))
+)
+
+// If the selected hall no longer matches the sport (or none selected), clear it.
+watch(
+  () => state.sport_id,
+  () => {
+    if (state.hall_id && !hallOptions.value.some((h) => h.value === state.hall_id)) {
+      state.hall_id = ''
+    }
+  }
+)
+
 watch(selectedPlayer, (player) => {
   state.player_id = player?.id || ''
 })
 
 function openModal() {
   state.player_id = ''
+  state.sport_id = ''
+  state.hall_id = ''
   state.time = '18:00'
   state.type = 'weekly'
   state.weekday = 1
@@ -68,6 +100,7 @@ function openModal() {
   state.start_date = new Date().toISOString().split('T')[0]
   state.is_active = true
   selectedPlayer.value = null
+  refreshHalls()
   open.value = true
 }
 
@@ -81,6 +114,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   try {
     const payload: any = {
       player_id: state.player_id,
+      sport_id: state.sport_id,
+      hall_id: state.hall_id,
       time: state.time,
       type: state.type,
       is_active: state.is_active ?? true
@@ -130,6 +165,22 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         <UFormField label="Spelare" name="player_id" required>
           <PlayerSelect ref="playerSelectRef" v-model="selectedPlayer" placeholder="Sök spelare..." />
         </UFormField>
+
+        <div class="grid grid-cols-2 gap-3">
+          <UFormField label="Sport" name="sport_id" required>
+            <USelect v-model="state.sport_id" :items="sportOptions" class="w-full" placeholder="Välj sport" />
+          </UFormField>
+
+          <UFormField label="Hall" name="hall_id" required>
+            <USelect
+              v-model="state.hall_id"
+              :items="hallOptions"
+              class="w-full"
+              placeholder="Välj hall"
+              :disabled="!state.sport_id"
+            />
+          </UFormField>
+        </div>
 
         <UFormField label="Tid" name="time" required>
           <UInput v-model="state.time" type="time" class="w-full" />

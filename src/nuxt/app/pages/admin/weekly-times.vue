@@ -78,6 +78,8 @@ interface Summary {
 
 const columns = [
   { id: 'player_name', header: 'Spelare', accessorKey: 'player_name' },
+  { id: 'sport_name', header: 'Sport', accessorKey: 'sport_name' },
+  { id: 'hall_name', header: 'Hall', accessorKey: 'hall_name' },
   { id: 'type', header: 'Typ', accessorKey: 'type' },
   { id: 'schedule', header: 'Schema', accessorKey: 'schedule' },
   { id: 'parity', header: 'Paritet', accessorKey: 'parity' },
@@ -144,6 +146,12 @@ async function loadData() {
         interval_days: s.interval_days,
         start_date: s.start_date,
         is_active: Boolean(s.is_active),
+        sport_id: s.sport_id || s.sport?.id || null,
+        hall_id: s.hall_id || s.hall?.id || null,
+        sport_name: s.sport?.name || '—',
+        hall_name: s.hall?.name || '—',
+        sport: s.sport || null,
+        hall: s.hall || null,
         player_name: s.player ? playerFullName(s.player) : '',
         player_phone: s.player?.phone || '',
         player_elo: s.player?.elo || 0,
@@ -180,7 +188,11 @@ function openEditModal(row: any) {
     week_parity: schedule.week_parity || 'all',
     interval_days: schedule.interval_days || null,
     start_date: schedule.start_date || null,
-    is_active: Boolean(schedule.is_active)
+    is_active: Boolean(schedule.is_active),
+    sport_id: schedule.sport_id || null,
+    hall_id: schedule.hall_id || null,
+    sport: schedule.sport || null,
+    hall: schedule.hall || null
   })
 }
 

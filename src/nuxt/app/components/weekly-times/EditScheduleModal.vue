@@ -13,6 +13,10 @@ interface ScheduleData {
   interval_days: number | null
   start_date: string | null
   is_active: boolean
+  sport_id: string | null
+  hall_id: string | null
+  sport?: { id: string; name: string; slug: string } | null
+  hall?: { id: string; name: string; slug: string | null; city: string | null } | null
 }
 
 withDefaults(defineProps<{
@@ -23,8 +27,13 @@ const open = ref(false)
 const loading = ref(false)
 const currentScheduleId = ref<string | null>(null)
 
+const { data: sportsData } = await useFetch<{ sports: Array<{ id: string; name: string; slug: string }> }>('/api/admin/sports', { default: () => ({ sports: [] }) })
+const { data: hallsData, refresh: refreshHalls } = await useFetch<{ halls: Array<{ id: string; name: string; sport_id: string; city: string | null }> }>('/api/admin/halls', { default: () => ({ halls: [] }) })
+
 const schema = z.object({
   player_id: z.string().min(1, 'Välj en spelare'),
+  sport_id: z.string().min(1, 'Välj en sport'),
+  hall_id: z.string().min(1, 'Välj en hall'),
   time: z.string().min(1, 'Ange en tid'),
   type: z.enum(['weekly', 'interval']),
   weekday: z.number().optional(),
@@ -38,6 +47,8 @@ type Schema = z.output<typeof schema>
 
 const state = reactive<Partial<Schema>>({
   player_id: '',
+  sport_id: '',
+  hall_id: '',
   time: '18:00',
   type: 'weekly',
   weekday: 1,
@@ -75,9 +86,33 @@ watch(selectedPlayer, (player) => {
   state.player_id = player?.id || ''
 })
 
+const sportOptions = computed(() =>
+  (sportsData.value?.sports ?? []).map((s) => ({ value: s.id, label: s.name }))
+)
+
+const hallOptions = computed(() =>
+  (hallsData.value?.halls ?? [])
+    .filter((h) => !state.sport_id || h.sport_id === state.sport_id)
+    .map((h) => ({
+      value: h.id,
+      label: h.city ? `${h.name} (${h.city})` : h.name,
+    }))
+)
+
+watch(
+  () => state.sport_id,
+  () => {
+    if (state.hall_id && !hallOptions.value.some((h) => h.value === state.hall_id)) {
+      state.hall_id = ''
+    }
+  }
+)
+
 function openModal(schedule: ScheduleData) {
   currentScheduleId.value = schedule.id
   state.player_id = schedule.player_id
+  state.sport_id = schedule.sport_id || schedule.sport?.id || ''
+  state.hall_id = schedule.hall_id || schedule.hall?.id || ''
   state.time = schedule.time || '18:00'
   state.type = schedule.interval_days ? 'interval' : 'weekly'
   state.weekday = schedule.weekday || 1
@@ -86,6 +121,7 @@ function openModal(schedule: ScheduleData) {
   state.start_date = schedule.start_date || new Date().toISOString().split('T')[0]
   state.is_active = schedule.is_active
   selectedPlayer.value = { id: schedule.player_id, first_name: schedule.player_name.split(' ')[0] || '', last_name: schedule.player_name.split(' ').slice(1).join(' ') || null, phone: '' }
+  refreshHalls()
   open.value = true
 }
 
@@ -99,6 +135,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   try {
     const payload: any = {
       player_id: state.player_id,
+      sport_id: state.sport_id,
+      hall_id: state.hall_id,
       time: state.time,
       is_active: state.is_active ?? true
     }
@@ -149,6 +187,22 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             placeholder="Sök spelare..."
           />
         </UFormField>
+
+        <div class="grid grid-cols-2 gap-3">
+          <UFormField label="Sport" name="sport_id" required>
+            <USelect v-model="state.sport_id" :items="sportOptions" class="w-full" placeholder="Välj sport" />
+          </UFormField>
+
+          <UFormField label="Hall" name="hall_id" required>
+            <USelect
+              v-model="state.hall_id"
+              :items="hallOptions"
+              class="w-full"
+              placeholder="Välj hall"
+              :disabled="!state.sport_id"
+            />
+          </UFormField>
+        </div>
 
         <UFormField label="Tid" name="time" required>
           <UInput v-model="state.time" type="time" class="w-full" />

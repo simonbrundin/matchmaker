@@ -11,6 +11,8 @@ interface ScheduleInput {
   phone?: string;
   name?: string;
   elo?: number;
+  sport_id?: string;
+  hall_id?: string;
 }
 
 function resolveDayOfWeek(body: ScheduleInput): number | null {
@@ -64,6 +66,13 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    if (!body.sport_id) {
+      throw createError({ statusCode: 400, message: "sport_id required" });
+    }
+    if (!body.hall_id) {
+      throw createError({ statusCode: 400, message: "hall_id required" });
+    }
+
     const dayOfWeek = resolveDayOfWeek(body);
     if (dayOfWeek === null && !body.interval_days) {
       throw createError({
@@ -72,11 +81,30 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // Validate hall exists, is active, and matches the selected sport.
+    const hallCheck = await client.query(
+      `SELECT id, sport_id FROM halls WHERE id = $1 AND is_active = true`,
+      [body.hall_id],
+    );
+    if (hallCheck.rowCount === 0) {
+      throw createError({
+        statusCode: 400,
+        message: "hall_id not found or inactive",
+      });
+    }
+    if (hallCheck.rows[0].sport_id !== body.sport_id) {
+      throw createError({
+        statusCode: 400,
+        message: "hall does not belong to the selected sport",
+      });
+    }
+
     const result = await client.query(
       `INSERT INTO weekly_times (
-        player_id, day_of_week, time, week_parity, interval_days, start_date, is_active
+        player_id, day_of_week, time, week_parity, interval_days, start_date, is_active,
+        sport_id, hall_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, true)
+      VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8)
       RETURNING *`,
       [
         playerId,
@@ -85,6 +113,8 @@ export default defineEventHandler(async (event) => {
         body.interval_days ? null : body.week_parity || "all",
         body.interval_days ? Number(body.interval_days) : null,
         body.start_date || null,
+        body.sport_id,
+        body.hall_id,
       ],
     );
 

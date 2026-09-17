@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
 
   const client = await postgresPool.connect();
   try {
-    // Get all active weekly times
+    // Get all active weekly times with sport and hall info
     const result = await client.query(
       `
       SELECT
@@ -19,14 +19,33 @@ export default defineEventHandler(async (event) => {
         wt.start_date,
         wt.is_active,
         wt.created_at,
+        wt.sport_id,
+        wt.hall_id,
         json_build_object(
           'id', p.id,
           'first_name', p.first_name,
           'last_name', p.last_name,
           'phone', p.phone
-        ) as player
+        ) as player,
+        CASE WHEN s.id IS NOT NULL THEN
+          json_build_object(
+            'id', s.id,
+            'name', s.name,
+            'slug', s.slug
+          )
+        ELSE NULL END as sport,
+        CASE WHEN h.id IS NOT NULL THEN
+          json_build_object(
+            'id', h.id,
+            'name', h.name,
+            'slug', h.slug,
+            'city', h.city
+          )
+        ELSE NULL END as hall
       FROM weekly_times wt
       JOIN players p ON p.id = wt.player_id
+      LEFT JOIN sports s ON s.id = wt.sport_id
+      LEFT JOIN halls h ON h.id = wt.hall_id
       WHERE ($1 OR wt.is_active = true)
       ORDER BY wt.day_of_week ASC NULLS LAST, wt.time ASC
     `,

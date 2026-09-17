@@ -5,7 +5,7 @@ import { h, resolveComponent } from 'vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { playerFullName } from '~/utils'
 import FriendsListModal from '~/components/players/FriendsListModal.vue'
-import PlayersDeleteModal from '~/components/players/DeleteModal.vue'
+import PlayersDeleteModal from '~/components/players/DeletePlayerModal.vue'
 
 interface Player {
   id: string

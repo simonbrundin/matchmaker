@@ -15,6 +15,8 @@ export default defineEventHandler(async (event) => {
     interval_days,
     start_date,
     is_active = true,
+    sport_id,
+    hall_id,
   } = body;
 
   if (!player_id) {
@@ -40,6 +42,32 @@ export default defineEventHandler(async (event) => {
 
   const client = await postgresPool.connect();
   try {
+    // If a hall is provided, validate it matches the sport.
+    if (hall_id) {
+      if (!sport_id) {
+        throw createError({
+          statusCode: 400,
+          message: "sport_id required when hall_id is provided",
+        });
+      }
+      const hallCheck = await client.query(
+        `SELECT id, sport_id FROM halls WHERE id = $1 AND is_active = true`,
+        [hall_id],
+      );
+      if (hallCheck.rowCount === 0) {
+        throw createError({
+          statusCode: 400,
+          message: "hall_id not found or inactive",
+        });
+      }
+      if (hallCheck.rows[0].sport_id !== sport_id) {
+        throw createError({
+          statusCode: 400,
+          message: "hall does not belong to the selected sport",
+        });
+      }
+    }
+
     const result = await client.query(
       `
         UPDATE weekly_times
@@ -49,8 +77,10 @@ export default defineEventHandler(async (event) => {
             week_parity = $4,
             interval_days = $5,
             start_date = $6,
-            is_active = $7
-        WHERE id = $8
+            is_active = $7,
+            sport_id = COALESCE($8, sport_id),
+            hall_id = COALESCE($9, hall_id)
+        WHERE id = $10
         RETURNING *
       `,
       [
@@ -61,6 +91,8 @@ export default defineEventHandler(async (event) => {
         isInterval ? Number(interval_days) : null,
         start_date || null,
         is_active,
+        sport_id ?? null,
+        hall_id ?? null,
         id,
       ],
     );

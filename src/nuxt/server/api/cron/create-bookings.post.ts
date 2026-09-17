@@ -6,7 +6,7 @@ import { sendToAdmin } from "~~/server/lib/telegram";
 
 export default defineEventHandler(async (event) => {
   const bookingService = getBookingService();
-  const smsClient = getSMSClient();
+  const smsClient = await getSMSClient();
   const supabase = getSupabaseAdmin();
 
   const tomorrow = new Date();
@@ -20,6 +20,8 @@ export default defineEventHandler(async (event) => {
   let bookingsCreated = 0;
 
   for (const wt of weeklyTimes) {
+    if (!wt.player_id || !wt.time) continue;
+
     const { data: existingBooking } = await supabase
       .from("bookings")
       .select("*")
@@ -52,6 +54,7 @@ export default defineEventHandler(async (event) => {
 
     for (let i = 0; i < topCandidates.length && i < neededPlayers * 3; i++) {
       const candidate = topCandidates[i];
+      if (!candidate) continue;
 
       const probabilityThreshold = (neededPlayers - i) / 36;
 

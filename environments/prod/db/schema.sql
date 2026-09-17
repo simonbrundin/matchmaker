@@ -166,3 +166,68 @@ VALUES ('+46 769 734 169', 'SALDO', '3535');
 CREATE TRIGGER update_cashcard_config_updated_at
     BEFORE UPDATE ON cashcard_config
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Sports (padel, tennis, …) — Court22 integration
+CREATE TABLE sports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT UNIQUE NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO sports (name, slug) VALUES
+    ('Padel', 'padel'),
+    ('Tennis', 'tennis');
+
+CREATE INDEX idx_sports_slug ON sports(slug);
+
+CREATE TRIGGER update_sports_updated_at
+    BEFORE UPDATE ON sports
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Halls (sport facilities) — Court22 / Matchi integration
+CREATE TABLE halls (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sport_id UUID NOT NULL REFERENCES sports(id) ON DELETE RESTRICT,
+    name TEXT NOT NULL,
+    slug TEXT,
+    booking_system TEXT CHECK (booking_system IN ('court22', 'matchi')),
+    court22_venue_id TEXT,
+    court22_slug TEXT,
+    matchi_url TEXT,
+    matchi_facility_id TEXT,
+    address TEXT,
+    city TEXT,
+    default_court_duration_minutes INTEGER NOT NULL DEFAULT 90,
+    default_capacity INTEGER NOT NULL DEFAULT 4,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT halls_valid_capacity CHECK (default_capacity > 0),
+    CONSTRAINT halls_valid_duration CHECK (default_court_duration_minutes > 0)
+);
+
+CREATE INDEX idx_halls_sport ON halls(sport_id);
+CREATE INDEX idx_halls_active ON halls(is_active);
+CREATE UNIQUE INDEX idx_halls_sport_court22_venue
+    ON halls(sport_id, court22_venue_id)
+    WHERE court22_venue_id IS NOT NULL;
+
+CREATE TRIGGER update_halls_updated_at
+    BEFORE UPDATE ON halls
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Link weekly_times to a sport and a hall (Court22 availability check)
+ALTER TABLE weekly_times
+    ADD COLUMN sport_id UUID REFERENCES sports(id) ON DELETE RESTRICT,
+    ADD COLUMN hall_id  UUID REFERENCES halls(id)  ON DELETE RESTRICT;
+
+CREATE INDEX idx_weekly_times_sport ON weekly_times(sport_id);
+CREATE INDEX idx_weekly_times_hall  ON weekly_times(hall_id);
+CREATE INDEX idx_weekly_times_hall_time
+    ON weekly_times(hall_id, day_of_week, time)
+    WHERE is_active = TRUE;
+

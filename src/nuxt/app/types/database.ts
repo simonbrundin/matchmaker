@@ -39,6 +39,42 @@ export interface WeeklyTime {
   week_parity: "all" | "odd" | "even";
   interval_days: number | null;
   start_date: string | null;
+  sport_id: string | null;
+  hall_id: string | null;
+  sport?: Sport;
+  hall?: Hall;
+}
+
+export interface Sport {
+  id: string;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type BookingSystem = "court22" | "matchi";
+
+export interface Hall {
+  id: string;
+  sport_id: string;
+  name: string;
+  slug: string | null;
+  booking_system: BookingSystem | null;
+  court22_venue_id: string | null;
+  court22_slug: string | null;
+  matchi_url: string | null;
+  matchi_facility_id: string | null;
+  address: string | null;
+  city: string | null;
+  default_court_duration_minutes: number;
+  default_capacity: number;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  sport?: Sport;
 }
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
