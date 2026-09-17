@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from "~~/server/lib/supabase";
+import { postgresPool } from "~~/server/lib/postgres";
 
 // Manual balance entry (when Lyca SMS response can't be received via webhook)
 export default defineEventHandler(async (event) => {
@@ -9,13 +9,17 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: "balance is required" });
   }
 
-  const supabase = getSupabaseAdmin();
+  const client = await postgresPool.connect();
+  try {
+    const result = await client.query(
+      `INSERT INTO cashcard_balances (balance, currency, raw_response)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [parseFloat(balance), currency || "SEK", raw_response || `Manuell inmatning: ${balance}`],
+    );
 
-  const result = await supabase.from("cashcard_balances").insert({
-    balance: parseFloat(balance),
-    currency: currency || "SEK",
-    raw_response: raw_response || `Manuell inmatning: ${balance}`,
-  });
-
-  return { success: true, balance: result };
+    return { success: true, balance: result.rows[0] };
+  } finally {
+    client.release();
+  }
 });

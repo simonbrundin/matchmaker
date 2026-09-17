@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from "~~/server/lib/supabase";
+import { postgresPool } from "~~/server/lib/postgres";
 import { getSMSClient } from "~~/server/lib/sms-gateway";
 
 export default defineEventHandler(async (event) => {
@@ -9,34 +9,50 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: "suggestionId required" });
   }
 
-  const supabase = getSupabaseAdmin();
-  const smsClient = getSMSClient();
+  const smsClient = await getSMSClient();
 
-  const { data: suggestion, error: fetchError } = await supabase
-    .from("ai_response_suggestions")
-    .select("*, player:players(*)")
-    .eq("id", suggestionId)
-    .single();
+  // Fetch suggestion with player info
+  const suggestionResult = await postgresPool.query(
+    `SELECT s.*, p.phone as "player.phone", p.first_name as "player.first_name"
+     FROM ai_response_suggestions s
+     JOIN players p ON p.id = s.player_id
+     WHERE s.id = $1`,
+    [suggestionId],
+  );
 
-  if (fetchError || !suggestion) {
+  const suggestion = suggestionResult.rows[0];
+
+  if (!suggestion) {
     throw createError({ statusCode: 404, message: "Suggestion not found" });
   }
 
-  await supabase
-    .from("ai_response_suggestions")
-    .update({ approved })
-    .eq("id", suggestionId);
+  // Update approval status
+  await postgresPool.query(
+    `UPDATE ai_response_suggestions SET approved = $1 WHERE id = $2`,
+    [approved, suggestionId],
+  );
 
   const responseToSend = customResponse || suggestion.ai_suggested_response;
 
   if (approved && responseToSend) {
-    await smsClient.sendMessage(suggestion.player.phone, responseToSend);
+    try {
+      await smsClient.sendMessage(suggestion["player.phone"], responseToSend);
 
-    await supabase.from("messages").insert({
-      player_id: suggestion.player_id,
-      direction: "outgoing",
-      content: responseToSend,
-    });
+      await postgresPool.query(
+        `INSERT INTO messages (player_id, direction, content)
+         VALUES ($1, 'outgoing', $2)`,
+        [suggestion.player_id, responseToSend],
+      );
+    } catch (error) {
+      console.error(
+        `[approve-response] Failed to send response to ${suggestion["player.first_name"]}:`,
+        error,
+      );
+      throw createError({
+        statusCode: 500,
+        message: "Failed to send SMS response",
+      });
+    }
   }
 
   return { success: true, approved };

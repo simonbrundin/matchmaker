@@ -1,94 +1,87 @@
+import { postgresPool } from "~~/server/lib/postgres";
 import { getBookingService } from "~~/server/lib/booking";
 import { getSMSClient } from "~~/server/lib/sms-gateway";
-import { getSupabaseAdmin } from "~~/server/lib/supabase";
 import { sendToAdmin } from "~~/server/lib/telegram";
+
+const MAX_DAYS_SINCE_INVITE = 4;
+const MAX_MESSAGES_PER_DAY = 3;
+const FOLLOWUP_MESSAGES = [
+  "Hej! Påminnelse om padel imorgon. Kan du?",
+  "Vad gäller med padeln imorgon?",
+  "Sista chansen att svara - kan du spela imorgon?",
+];
+
+interface PendingInvite {
+  id: string;
+  booking_id: string;
+  player_id: string;
+  invited_at: string;
+  player: {
+    id: string;
+    phone: string;
+    first_name: string;
+  };
+}
 
 export default defineEventHandler(async (event) => {
   const bookingService = getBookingService();
-  const smsClient = getSMSClient();
-  const supabase = getSupabaseAdmin();
+  const smsClient = await getSMSClient();
 
   const now = new Date();
   const currentHour = now.getHours();
   const currentDay = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
+  const todayStr = now.toISOString().split("T")[0];
 
-  const { data: pendingBookings } = await supabase
-    .from("bookings")
-    .select("*")
-    .eq("status", "pending")
-    .lte("scheduled_date", now.toISOString().split("T")[0])
-    .lte("scheduled_time", now.toTimeString().slice(0, 5));
+  // Get pending bookings that are due
+  const pendingResult = await postgresPool.query(
+    `SELECT * FROM bookings
+     WHERE status = 'pending'
+       AND scheduled_date <= $1
+       AND scheduled_time <= $2`,
+    [todayStr, now.toTimeString().slice(0, 5)],
+  );
 
   let messagesSent = 0;
 
-  for (const booking of pendingBookings || []) {
-    const { data: invites } = await supabase
-      .from("booked_players")
-      .select("*, player:players(*)")
-      .eq("booking_id", booking.id)
-      .eq("status", "invited")
-      .eq("response", null);
-
-    if (!invites || invites.length === 0) continue;
+  for (const booking of pendingResult.rows) {
+    const invites = await getPendingInvitesForBooking(booking.id);
+    if (invites.length === 0) continue;
 
     for (const invite of invites) {
       const invitedAt = new Date(invite.invited_at);
-      const dayInvited = Math.floor(
-        invitedAt.getTime() / (1000 * 60 * 60 * 24),
-      );
+      const dayInvited = Math.floor(invitedAt.getTime() / (1000 * 60 * 60 * 24));
       const daysSinceInvite = currentDay - dayInvited;
 
-      if (daysSinceInvite > 4) continue;
+      if (daysSinceInvite > MAX_DAYS_SINCE_INVITE) continue;
 
-      const maxMessages = (daysSinceInvite + 1) * 3;
-      const currentDayMessages =
-        currentHour >= 8 && currentHour < 12
-          ? 1
-          : currentHour >= 12 && currentHour < 17
-            ? 2
-            : currentHour >= 17
-              ? 3
-              : 0;
+      const maxMessages = (daysSinceInvite + 1) * MAX_MESSAGES_PER_DAY;
+      const currentDayMessages = getMessageCountForHour(currentHour);
 
-      if (currentDayMessages >= 3) continue;
+      if (currentDayMessages >= MAX_MESSAGES_PER_DAY) continue;
 
-      const { data: existingMessages } = await supabase
-        .from("messages")
-        .select("id")
-        .eq("booking_id", booking.id)
-        .eq("player_id", invite.player_id)
-        .eq("direction", "outgoing");
-
-      const messageCount = existingMessages?.length || 0;
-
-      if (messageCount >= maxMessages) continue;
-
-      const followupMessages = [
-        "Hej! Påminnelse om padel imorgon. Kan du?",
-        "Vad gäller med padeln imorgon?",
-        "Sista chansen att svara - kan du spela imorgon?",
-      ];
-
-      const messageIndex = Math.min(
-        daysSinceInvite,
-        followupMessages.length - 1,
+      const existingCount = await getOutgoingMessageCount(
+        booking.id,
+        invite.player_id,
       );
-      const message = followupMessages[messageIndex];
+
+      if (existingCount >= maxMessages) continue;
+
+      const messageIndex = Math.min(daysSinceInvite, FOLLOWUP_MESSAGES.length - 1);
+      const message = FOLLOWUP_MESSAGES[messageIndex];
 
       try {
         await smsClient.sendMessage(invite.player.phone, message);
 
-        await supabase.from("messages").insert({
-          booking_id: booking.id,
-          player_id: invite.player_id,
-          direction: "outgoing",
-          content: message,
-        });
+        await postgresPool.query(
+          `INSERT INTO messages (booking_id, player_id, direction, content)
+           VALUES ($1, $2, 'outgoing', $3)`,
+          [booking.id, invite.player_id, message],
+        );
 
         messagesSent++;
       } catch (error) {
         console.error(
-          `Failed to send followup to ${invite.player.first_name}:`,
+          `[process-followups] Failed to send followup to ${invite.player.first_name}:`,
           error,
         );
       }
@@ -102,3 +95,45 @@ export default defineEventHandler(async (event) => {
     messagesSent,
   };
 });
+
+async function getPendingInvitesForBooking(bookingId: string): Promise<PendingInvite[]> {
+  const result = await postgresPool.query(
+    `SELECT bp.id, bp.booking_id, bp.player_id, bp.invited_at,
+            p.id as "player.id", p.phone as "player.phone", p.first_name as "player.first_name"
+     FROM booked_players bp
+     JOIN players p ON p.id = bp.player_id
+     WHERE bp.booking_id = $1 AND bp.status = 'invited' AND bp.response IS NULL`,
+    [bookingId],
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    booking_id: row.booking_id,
+    player_id: row.player_id,
+    invited_at: row.invited_at,
+    player: {
+      id: row["player.id"],
+      phone: row["player.phone"],
+      first_name: row["player.first_name"],
+    },
+  }));
+}
+
+async function getOutgoingMessageCount(
+  bookingId: string,
+  playerId: string,
+): Promise<number> {
+  const result = await postgresPool.query(
+    `SELECT COUNT(*) as count FROM messages
+     WHERE booking_id = $1 AND player_id = $2 AND direction = 'outgoing'`,
+    [bookingId, playerId],
+  );
+  return parseInt(result.rows[0].count, 10);
+}
+
+function getMessageCountForHour(hour: number): number {
+  if (hour >= 8 && hour < 12) return 1;
+  if (hour >= 12 && hour < 17) return 2;
+  if (hour >= 17) return 3;
+  return 0;
+}

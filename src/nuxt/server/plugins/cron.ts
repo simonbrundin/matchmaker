@@ -1,4 +1,4 @@
-import { startCronJobs } from "../../server/cron/scheduler";
+import { startCronJobs } from "../lib/scheduler/index";
 
 export default () => {
   // The scheduler runs in the production process. Starting it in the Bun-based

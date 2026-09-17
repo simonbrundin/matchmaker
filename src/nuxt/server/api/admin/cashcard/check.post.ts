@@ -1,15 +1,20 @@
-import { getSupabaseAdmin } from "~~/server/lib/supabase";
+import { postgresPool } from "~~/server/lib/postgres";
 import { getSMSClient } from "~~/server/lib/sms-gateway";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event).catch(() => ({}));
-  const supabase = getSupabaseAdmin();
+  const client = await postgresPool.connect();
 
-  const { data: config } = await supabase
-    .from("cashcard_config")
-    .select("*")
-    .limit(1)
-    .single();
+  let config: { check_command: string; shortcode: string } | null = null;
+
+  try {
+    const configResult = await client.query(
+      `SELECT * FROM cashcard_config LIMIT 1`,
+    );
+    config = configResult.rows[0] ?? null;
+  } finally {
+    client.release();
+  }
 
   if (!config) {
     throw createError({
@@ -21,7 +26,7 @@ export default defineEventHandler(async (event) => {
   const command = body?.command || config.check_command;
   const shortcode = body?.shortcode || config.shortcode;
 
-  const smsClient = getSMSClient();
+  const smsClient = await getSMSClient();
 
   try {
     await smsClient.sendMessage(shortcode, command, {
@@ -32,10 +37,11 @@ export default defineEventHandler(async (event) => {
       success: true,
       message: `"${command}" sent to ${shortcode}. Reply coming soon.`,
     };
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     throw createError({
       statusCode: 500,
-      message: "Could not send SMS: " + error.message,
+      message: `Could not send SMS: ${message}`,
     });
   }
 });

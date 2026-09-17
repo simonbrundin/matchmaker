@@ -62,9 +62,12 @@ export class Court22Client {
   private apiKey: string;
 
   constructor() {
-    // Prefer env var; fall back to the key found in the web app (DevTools).
-    // The hardcoded key may stop working if Court22 rotates it.
-    this.apiKey = COURT22_API_KEY ?? "12dfad29c2b4415582e4df729820d929";
+    if (!COURT22_API_KEY) {
+      throw new Error(
+        "COURT22_API_KEY environment variable is required for Court22 integration",
+      );
+    }
+    this.apiKey = COURT22_API_KEY;
   }
 
   async getHall(hallId: string): Promise<HallLookup | null> {

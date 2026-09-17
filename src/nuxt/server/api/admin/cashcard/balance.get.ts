@@ -1,26 +1,26 @@
-import { getSupabaseAdmin } from "~~/server/lib/supabase";
+import { postgresPool } from "~~/server/lib/postgres";
 
 export default defineEventHandler(async () => {
-  const supabase = getSupabaseAdmin();
+  const client = await postgresPool.connect();
+  try {
+    // Get the latest balance
+    const balanceResult = await client.query(
+      `SELECT * FROM cashcard_balances ORDER BY checked_at DESC LIMIT 1`,
+    );
+    const latestBalance = balanceResult.rows[0] ?? null;
 
-  // Get the latest balance
-  const { data: latestBalance } = await supabase
-    .from("cashcard_balances")
-    .select("*")
-    .order("checked_at", { ascending: false })
-    .limit(1)
-    .single();
+    // Get config
+    const configResult = await client.query(
+      `SELECT * FROM cashcard_config LIMIT 1`,
+    );
+    const config = configResult.rows[0] ?? null;
 
-  // Get config
-  const { data: config } = await supabase
-    .from("cashcard_config")
-    .select("*")
-    .limit(1)
-    .single();
-
-  return {
-    balance: latestBalance,
-    config,
-    lastChecked: latestBalance?.checked_at || null,
-  };
+    return {
+      balance: latestBalance,
+      config,
+      lastChecked: latestBalance?.checked_at || null,
+    };
+  } finally {
+    client.release();
+  }
 });

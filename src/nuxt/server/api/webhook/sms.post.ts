@@ -1,26 +1,23 @@
-import { getSupabaseAdmin } from "~~/server/lib/supabase";
+import { postgresPool } from "~~/server/lib/postgres";
 import { sendToAdmin } from "~~/server/lib/telegram";
 import { analyzeIncomingMessage } from "~~/server/lib/ai";
 import { playerFullName } from "~/utils";
 
-// Parse balance from Lyca response
-// Expected formats: "Saldo: 150.50 SEK" or "Balance: 150.50 SEK"
-function parseLycaBalance(
-  text: string,
-): { balance: number; currency: string } | null {
-  // Try Swedish format: "Saldo: 150.50 SEK"
+// ─── Balance parsing ─────────────────────────────────────────────────────────
+
+function parseLycaBalance(text: string): { balance: number; currency: string } | null {
   const sekMatch = text.match(
     /(?:Saldo|saldo|Balance|balance)\s*[:.]?\s*(\d+[.,]\d{1,2})\s*(SEK|kr)?/i,
   );
   if (sekMatch) {
-    const balance = parseFloat(sekMatch[1].replace(",", "."));
-    return { balance, currency: "SEK" };
+    return {
+      balance: parseFloat(sekMatch[1].replace(",", ".")),
+      currency: "SEK",
+    };
   }
 
-  // Try generic number with currency
   const genericMatch = text.match(/(\d+[.,]\d{1,2})\s*(SEK|kr|EUR|€|USD|\$)/i);
   if (genericMatch) {
-    const balance = parseFloat(genericMatch[1].replace(",", "."));
     const currMap: Record<string, string> = {
       SEK: "SEK",
       kr: "SEK",
@@ -29,44 +26,108 @@ function parseLycaBalance(
       USD: "USD",
       "\$": "USD",
     };
-    return { balance, currency: currMap[genericMatch[2]] || "SEK" };
+    return {
+      balance: parseFloat(genericMatch[1].replace(",", ".")),
+      currency: currMap[genericMatch[2]] || "SEK",
+    };
   }
 
   return null;
 }
 
-// Check if this is a cashcard balance response (from shortcode)
 async function handleCashcardBalance(
-  supabase: any,
   text: string,
+  phoneNumber: string,
 ): Promise<boolean> {
-  // Get config
-  const { data: config } = await supabase
-    .from("cashcard_config")
-    .select("*")
-    .limit(1)
-    .single();
+  const configResult = await postgresPool.query(
+    `SELECT * FROM cashcard_config LIMIT 1`,
+  );
+  const config = configResult.rows[0];
 
-  if (!config) return false;
+  if (!config || phoneNumber !== config.shortcode) {
+    return false;
+  }
 
-  // Parse balance
   const parsed = parseLycaBalance(text);
   if (!parsed) return false;
 
-  // Save to database
-  await supabase.from("cashcard_balances").insert({
-    balance: parsed.balance,
-    currency: parsed.currency,
-    raw_response: text,
-  });
+  await postgresPool.query(
+    `INSERT INTO cashcard_balances (balance, currency, raw_response)
+     VALUES ($1, $2, $3)`,
+    [parsed.balance, parsed.currency, text],
+  );
 
-  // Notify admin via Telegram (non-blocking, don't fail webhook if unconfigured)
   sendToAdmin(
     `💳 Cashcard-saldo uppdaterat: ${parsed.balance.toFixed(2)} ${parsed.currency}\n\`${text}\``,
   ).catch(() => {});
 
   return true;
 }
+
+async function processPlayerMessage(
+  phoneNumber: string,
+  text: string,
+): Promise<void> {
+  // Find player by phone
+  const playerResult = await postgresPool.query(
+    `SELECT * FROM players WHERE phone = $1`,
+    [phoneNumber],
+  );
+  const player = playerResult.rows[0];
+
+  if (!player) {
+    return; // Don't notify for unknown numbers
+  }
+
+  // Record incoming message
+  await postgresPool.query(
+    `INSERT INTO messages (player_id, direction, content)
+     VALUES ($1, 'incoming', $2)`,
+    [player.id, text],
+  );
+
+  try {
+    const aiResult = await analyzeIncomingMessage(text, playerFullName(player));
+
+    await postgresPool.query(
+      `INSERT INTO ai_response_suggestions (player_id, incoming_message, ai_suggested_response, ai_confidence)
+       VALUES ($1, $2, $3, $4)`,
+      [player.id, text, aiResult.response, aiResult.confidence],
+    );
+
+    const messageForAdmin = `
+📱 Svar från ${playerFullName(player)} (${phoneNumber}):
+"${text}"
+
+🤖 AI-förslag: "${aiResult.response}"
+Konfidens: ${(aiResult.confidence * 100).toFixed(0)}%
+${aiResult.shouldCreateUnavailability ? "⚠️ Vill skapa ledighet!" : ""}
+    `.trim();
+
+    await sendToAdmin(messageForAdmin);
+
+    if (aiResult.shouldCreateUnavailability && aiResult.unavailability) {
+      const { startDate, endDate, reason } = aiResult.unavailability;
+
+      await postgresPool.query(
+        `INSERT INTO unavailabilities (player_id, start_date, end_date, reason, ai_parsed)
+         VALUES ($1, $2, $3, $4, true)`,
+        [player.id, startDate, endDate, reason || "AI-genererad"],
+      );
+
+      await sendToAdmin(
+        `✅ Lade till ledighet för ${playerFullName(player)}: ${startDate} - ${endDate}`,
+      );
+    }
+  } catch (error) {
+    console.error(`[sms-webhook] AI analysis failed for ${phoneNumber}:`, error);
+    await sendToAdmin(
+      `❌ AI-analys misslyckades för ${playerFullName(player)}: ${text}`,
+    );
+  }
+}
+
+// ─── Handler ─────────────────────────────────────────────────────────────────
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -75,87 +136,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: "Invalid payload" });
   }
 
-  const supabase = getSupabaseAdmin();
-
   for (const msg of body.messages) {
-    const phoneNumber = msg.phoneNumber;
-    const text = msg.text;
+    const phoneNumber = msg.phoneNumber as string;
+    const text = msg.text as string;
 
-    // Get cashcard config to check shortcode
-    const { data: config } = await supabase
-      .from("cashcard_config")
-      .select("*")
-      .limit(1)
-      .single();
+    // Check if this is a cashcard balance response
+    const handled = await handleCashcardBalance(text, phoneNumber);
+    if (handled) continue;
 
-    // Check if this is from the cashcard shortcode
-    if (config && phoneNumber === config.shortcode) {
-      const handled = await handleCashcardBalance(supabase, text);
-      if (handled) continue;
-    }
-
-    const { data: player } = await supabase
-      .from("players")
-      .select("*")
-      .eq("phone", phoneNumber)
-      .single();
-
-    if (!player) {
-      // Don't notify for unknown numbers - might be cashcard responses
-      continue;
-    }
-
-    await supabase.from("messages").insert({
-      player_id: player.id,
-      direction: "incoming",
-      content: text,
-    });
-
-    try {
-      const aiResult = await analyzeIncomingMessage(
-        text,
-        playerFullName(player),
-      );
-
-      await supabase.from("ai_response_suggestions").insert({
-        player_id: player.id,
-        incoming_message: text,
-        ai_suggested_response: aiResult.response,
-        ai_confidence: aiResult.confidence,
-      });
-
-      const messageForAdmin = `
-📱 Svar från ${playerFullName(player)} (${phoneNumber}):
-"${text}"
-
-🤖 AI-förslag: "${aiResult.response}"
-Konfidens: ${(aiResult.confidence * 100).toFixed(0)}%
-${aiResult.shouldCreateUnavailability ? "⚠️ Vill skapa ledighet!" : ""}
-      `.trim();
-
-      await sendToAdmin(messageForAdmin);
-
-      if (aiResult.shouldCreateUnavailability && aiResult.unavailability) {
-        const { startDate, endDate, reason } = aiResult.unavailability;
-
-        await supabase.from("unavailabilities").insert({
-          player_id: player.id,
-          start_date: startDate,
-          end_date: endDate,
-          reason: reason || "AI-genererad",
-          ai_parsed: true,
-        });
-
-        await sendToAdmin(
-          `✅ Lade till ledighet för ${playerFullName(player)}: ${startDate} - ${endDate}`,
-        );
-      }
-    } catch (error) {
-      console.error("AI analysis failed:", error);
-      await sendToAdmin(
-        `❌ AI-analys misslyckades för ${playerFullName(player)}: ${text}`,
-      );
-    }
+    // Process as player message
+    await processPlayerMessage(phoneNumber, text);
   }
 
   return { success: true };
