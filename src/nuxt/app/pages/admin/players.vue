@@ -1,11 +1,13 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'default' })
 
-import { h, resolveComponent } from 'vue'
+import { h, resolveComponent, type Component } from 'vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { playerFullName } from '~/utils'
 import FriendsListModal from '~/components/players/FriendsListModal.vue'
+<<<<<<< HEAD
 import PlayersDeleteModal from '~/components/players/DeletePlayerModal.vue'
+import MessagesModal from '~/components/players/MessagesModal.vue'
 
 interface Player {
   id: string
@@ -25,6 +27,8 @@ const showAddModal = ref(false)
 const showEditModal = ref(false)
 const deleteModal = ref()
 const deleteData = ref<{ id: string; name: string }>()
+const messagesModalRef = ref()
+const selectedPlayerForMessages = ref<Player | null>(null)
 const friendsModal = ref()
 const friendsPlayer = ref<{ id: string; first_name: string; last_name: string | null; elo: number }>({ id: '', first_name: '', last_name: null, elo: 0 })
 const newPlayer = ref({ first_name: '', last_name: '', phone: '', elo: 1200 })
@@ -111,7 +115,35 @@ const columns: ColumnDef<Player>[] = [
   },
   {
     accessorKey: 'actions',
-    header: ''
+    header: '',
+    cell: ({ row }: any) => h('div', { class: 'flex gap-2' }, [
+      h(resolveComponent('UButton') as Component, {
+        icon: 'i-lucide-mail',
+        variant: 'ghost',
+        size: 'xs',
+        title: 'Meddelanden',
+        onClick: () => openMessagesModal(row)
+      }),
+      h(resolveComponent('UButton') as Component, {
+        icon: 'i-lucide-users',
+        variant: 'ghost',
+        size: 'xs',
+        onClick: () => openFriendsModal(row)
+      }),
+      h(resolveComponent('UButton') as Component, {
+        label: 'Redigera',
+        variant: 'outline',
+        size: 'xs',
+        onClick: () => openEditModal(row)
+      }),
+      h(resolveComponent('UButton') as Component, {
+        icon: 'i-lucide-trash-2',
+        variant: 'ghost',
+        color: 'error',
+        size: 'xs',
+        onClick: () => openDeleteModal(row)
+      })
+    ])
   }
 ]
 
@@ -195,6 +227,12 @@ function openFriendsModal(row: any) {
   friendsModal.value?.openModal(friendsPlayer.value)
 }
 
+function openMessagesModal(row: any) {
+  const player = row.original || row
+  selectedPlayerForMessages.value = player
+  messagesModalRef.value?.openModal(player)
+}
+
 async function saveEdit() {
   try {
     const payload: any = {
@@ -244,14 +282,8 @@ watch(sorting, () => {
 
     <UCard>
       <LoadingState v-if="isLoading" label="Laddar spelare..." />
-      <UTable v-else v-model:sorting="sorting" :data="players" :columns="columns">
-        <template #actions-cell="{ row }">
-          <div class="flex gap-2">
-            <UButton icon="i-lucide-users" variant="ghost" size="xs" @click="openFriendsModal(row)" />
-            <UButton label="Redigera" variant="outline" size="xs" @click="openEditModal(row)" />
-            <UButton icon="i-lucide-trash-2" variant="ghost" color="error" size="xs" @click="openDeleteModal(row)" />
-          </div>
-        </template>
+      <UTable v-else v-model:sorting="sorting" :data="players" :columns="columns" :row-key="(row: any) => row.id">
+        
       </UTable>
       <div v-if="!isLoading && players.length === 0" class="text-center py-8 text-muted">
         Inga spelare hittades
@@ -311,5 +343,6 @@ watch(sorting, () => {
 
     <PlayersDeleteModal ref="deleteModal" :player="deleteData" @deleted="loadPlayers" />
     <FriendsListModal ref="friendsModal" :player="friendsPlayer" />
+    <MessagesModal ref="messagesModalRef" :player="selectedPlayerForMessages!" />
   </div>
 </template>
