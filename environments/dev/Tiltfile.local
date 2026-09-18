@@ -1,5 +1,12 @@
 # -*- mode: python; -*-
 
+# ==================================================================
+# Matchmaker Development Environment - Local Mode
+#
+# Access the app at: http://localhost:3000
+# pg-view: http://localhost:5050 (auto-starts with postgres)
+# ==================================================================
+
 # ------------------------------------------------------------------
 # Local Development Mode
 # Allt i Docker Compose - postgres och nuxt
@@ -14,6 +21,26 @@ docker_compose('./docker-compose.yml')
 dc_resource(
   'postgres',
   labels=['Database'],
+)
+
+# ------------------------------------------------------------------
+# pg-view setup
+# ------------------------------------------------------------------
+
+local_resource(
+  'pgview',
+  cmd = ["sh", "-c", """
+    # Get the actual container name dynamically
+    CONTAINER=$(docker compose -f /home/simon/repos/matchmaker/environments/dev/docker-compose.yml ps postgres --format '{{.Name}}')
+    docker network create matchmaker-net 2>/dev/null || true
+    docker network connect matchmaker-net $CONTAINER 2>/dev/null || true
+    docker rm -f pgview 2>/dev/null || true
+    docker run -d --name pgview --network matchmaker-net -p 5050:3000 -e DB_URL=postgresql://matchmaker:matchmaker@$CONTAINER:5432/matchmaker lcurrol/pg-view
+    echo 'pg-view started successfully'
+  """],
+  labels = ["Database"],
+  auto_init = True,
+  resource_deps = ["postgres"],
 )
 
 # ------------------------------------------------------------------
