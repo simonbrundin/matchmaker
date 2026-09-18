@@ -30,9 +30,13 @@ interface MessagesResponse {
   hasMore: boolean
 }
 
-const props = defineProps<{
-  player: Player
-}>()
+const player = ref<Player | null>(null)
+
+function openModal(p: Player) {
+  player.value = p
+}
+
+defineExpose({ openModal })
 
 const emit = defineEmits<{
   close: []
@@ -60,7 +64,7 @@ async function loadMessages(direction?: 'incoming' | 'outgoing') {
     }
     
     const result = await $fetch<MessagesResponse>(
-      `/api/admin/players/${props.player.id}/messages?${params.toString()}`
+      `/api/admin/players/${player.value?.id}/messages?${params.toString()}`
     )
     
     messages.value = result.messages
@@ -123,7 +127,7 @@ onMounted(() => {
         <div>
           <h2 class="text-xl font-bold">Meddelanden</h2>
           <p class="text-muted">
-            {{ playerFullName(player) }} &bull; {{ player.phone }}
+            {{ playerFullName(player) }}<template v-if="player"> &bull; {{ player.phone }}</template>
           </p>
         </div>
         <UButton

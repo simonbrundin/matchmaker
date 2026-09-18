@@ -11,7 +11,8 @@ export interface PlayerNameFields {
   last_name?: string | null;
 }
 
-export function playerFullName(player: PlayerNameFields): string {
+export function playerFullName(player: PlayerNameFields | null): string {
+  if (!player) return "";
   if (!player.first_name) return "";
   if (!player.last_name) return player.first_name;
   return `${player.first_name} ${player.last_name}`;

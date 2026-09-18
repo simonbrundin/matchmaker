@@ -342,6 +342,6 @@ watch(sorting, () => {
 
     <PlayersDeleteModal ref="deleteModal" :player="deleteData" @deleted="loadPlayers" />
     <FriendsListModal ref="friendsModal" :player="friendsPlayer" />
-    <MessagesModal ref="messagesModalRef" :player="selectedPlayerForMessages!" />
+    <MessagesModal v-if="selectedPlayerForMessages" ref="messagesModalRef" />
   </div>
 </template>

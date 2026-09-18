@@ -17,13 +17,18 @@ dc_resource(
 )
 
 # ------------------------------------------------------------------
-# Nuxt App (Docker Compose)
+# Nuxt App (Local Dev)
 # ------------------------------------------------------------------
 
-dc_resource(
-  'app',
+local_resource(
+  'nuxt-dev',
+  serve_cmd='''PORT=$(docker compose -f /home/simon/repos/matchmaker/environments/dev/docker-compose.yml port postgres 5432 | cut -d: -f2) && export DATABASE_URL="postgresql://matchmaker:matchmaker@localhost:$PORT/matchmaker" && export NUXT_IGNORE_LOCK=1 && bun run dev --host 0.0.0.0''',
+  serve_dir='/home/simon/repos/matchmaker/src/nuxt',
+  env={
+    'NODE_ENV': 'development',
+  },
   labels=['App'],
-  resource_deps=['postgres', 'copy-db'],
+  resource_deps=['postgres'],
 )
 
 # ------------------------------------------------------------------
