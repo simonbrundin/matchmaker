@@ -3,9 +3,11 @@
 # ==================================================================
 # Matchmaker Development Environment - Local Mode
 #
-# Access the app at: http://localhost:3000
-# pg-view: http://localhost:5050 (auto-starts with postgres)
+# Portar tilldelas dynamiskt - kolla Tilt för aktuella portar
 # ==================================================================
+
+# Suppress warning: docker_build image not used in docker-compose
+update_settings(suppress_unused_image_warnings=["matchmaker-nuxt"])
 
 # ------------------------------------------------------------------
 # Local Development Mode
@@ -29,43 +31,72 @@ dc_resource(
 
 local_resource(
   'pgview',
-  cmd = ["sh", "-c", """
-    # Get the actual container name dynamically
-    CONTAINER=$(docker compose -f /home/simon/repos/matchmaker/environments/dev/docker-compose.yml ps postgres --format '{{.Name}}')
-    docker network create matchmaker-net 2>/dev/null || true
-    docker network connect matchmaker-net $CONTAINER 2>/dev/null || true
+  cmd=['sh', '-c', '''
     docker rm -f pgview 2>/dev/null || true
-    docker run -d --name pgview --network matchmaker-net -p 5050:3000 -e DB_URL=postgresql://matchmaker:matchmaker@$CONTAINER:5432/matchmaker lcurrol/pg-view
-    echo 'pg-view started successfully'
-  """],
-  labels = ["Database"],
-  auto_init = True,
-  resource_deps = ["postgres"],
+    docker run -d --name pgview --network dev_default -P \
+      -e DB_URL="postgresql://matchmaker:matchmaker@postgres:5432/matchmaker" \
+      lcurrol/pg-view
+  '''],
+  labels=["Database"],
+  auto_init=False,
+  resource_deps=["postgres"],
+)
+
+# Lägg till klickbar link med fast port
+k8s_resource(
+  workload_name='pgview',
+  port_forwards=[5050],
+  links=['http://localhost:5050'],
 )
 
 # ------------------------------------------------------------------
-# Nuxt App (Local Dev)
+# Nuxt App (Dockerfile + Hot Reload)
 # ------------------------------------------------------------------
 
+# Build nuxt image from Dockerfile
+docker_build(
+  'matchmaker-nuxt',
+  context='/home/simon/repos/matchmaker',
+  dockerfile='/home/simon/repos/matchmaker/environments/common/Dockerfile',
+)
+
+# Custom resource that runs nuxt with live reload via volumes
 local_resource(
   'nuxt-dev',
-  serve_cmd='''PORT=$(docker compose -f /home/simon/repos/matchmaker__worktrees/test/environments/dev/docker-compose.yml port postgres 5432 | cut -d: -f2) && export DATABASE_URL="postgresql://matchmaker:matchmaker@localhost:$PORT/matchmaker" && export NUXT_IGNORE_LOCK=1 && bun run dev --host 0.0.0.0''',
-  serve_dir='/home/simon/repos/matchmaker__worktrees/test/src/nuxt',
-  env={
-    'NODE_ENV': 'development',
-  },
+  cmd=['sh', '-c', '''
+    NUXT_DIR=/home/simon/repos/matchmaker/src/nuxt
+    docker rm -f nuxt-dev 2>/dev/null || true
+    docker run -d \
+      --name nuxt-dev \
+      --network dev_default \
+      -P \
+      -v $NUXT_DIR/app:/app/app \
+      -v $NUXT_DIR/components:/app/components \
+      -v $NUXT_DIR/pages:/app/pages \
+      -v $NUXT_DIR/server:/app/server \
+      -v $NUXT_DIR/public:/app/public \
+      -v $NUXT_DIR/nuxt.config.ts:/app/nuxt.config.ts \
+      -e DATABASE_URL="postgresql://matchmaker:matchmaker@postgres:5432/matchmaker" \
+      -e NUXT_IGNORE_LOCK=1 \
+      -e NODE_ENV=development \
+      matchmaker-nuxt bun run dev --host 0.0.0.0
+    sleep 1
+    docker port nuxt-dev 3000/tcp | sed "s/.*://"
+  '''],
+  deps=['/home/simon/repos/matchmaker/src/nuxt'],
   labels=['App'],
   resource_deps=['postgres'],
 )
 
 # ------------------------------------------------------------------
-# Kopiera databas
-# Automatiskt från main om vi är på en branch
+# Kopiera databas från main (för brancher)
 # ------------------------------------------------------------------
 
 local_resource(
   'copy-db',
-  cmd='cd ../.. && bash scripts/copy-db.sh',
+  cmd='bash /home/simon/repos/matchmaker/environments/dev/scripts/copy-db.sh',
   labels=['Setup'],
   resource_deps=['postgres'],
 )
+
+
