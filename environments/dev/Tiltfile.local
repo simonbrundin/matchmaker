@@ -1,6 +1,8 @@
+# -*- mode: python; -*-
+
 # ------------------------------------------------------------------
 # Local Development Mode
-# Runs all services in Docker Compose
+# Allt i Docker Compose - postgres och nuxt
 # ------------------------------------------------------------------
 
 docker_compose('./docker-compose.yml')
@@ -15,11 +17,23 @@ dc_resource(
 )
 
 # ------------------------------------------------------------------
-# App (Nuxt in Docker)
+# Nuxt App (Docker Compose)
 # ------------------------------------------------------------------
 
 dc_resource(
   'app',
   labels=['App'],
+  resource_deps=['postgres', 'copy-db'],
+)
+
+# ------------------------------------------------------------------
+# Kopiera databas
+# Automatiskt från main om vi är på en branch
+# ------------------------------------------------------------------
+
+local_resource(
+  'copy-db',
+  cmd='cd ../.. && bash scripts/copy-db.sh',
+  labels=['Setup'],
   resource_deps=['postgres'],
 )

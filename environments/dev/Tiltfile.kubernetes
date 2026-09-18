@@ -1,7 +1,15 @@
+# -*- mode: python; -*-
+
+import os
+
 # ------------------------------------------------------------------
 # Kubernetes Development Mode
 # Runs all services in remote Kubernetes cluster
 # ------------------------------------------------------------------
+
+# Dynamisk port för att möjliggöra flera worktrees samtidigt
+app_port = os.getenv('APP_PORT', '3000')
+print('App Port: ' + app_port)
 
 # ------------------------------------------------------------------
 # Tillåt remote cluster
@@ -67,7 +75,7 @@ k8s_resource(
 k8s_resource(
   workload='matchmaker',
   new_name='Matchmaker',
-  port_forwards=3000,
+  port_forwards=app_port,
   labels=['App'],
   resource_deps=['PostgreSQL'],
 )

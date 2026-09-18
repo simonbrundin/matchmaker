@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: matchmaker-dev-postgres
     ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
+      - "${POSTGRES_HOST_PORT:-}:5432"
     environment:
       POSTGRES_USER: matchmaker
       POSTGRES_PASSWORD: matchmaker
@@ -23,7 +23,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: matchmaker-dev-app
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-}:3000"
     env_file:
       - .env
     environment:
@@ -34,7 +34,7 @@ services:
       - ../../src/nuxt/server:/app/server
       - ../../src/nuxt/nuxt.config.ts:/app/nuxt.config.ts
       - /app/node_modules
-    command: ["bun", "run", "dev", "--host", "0.0.0.0"]
+    command: bun run dev --host 0.0.0.0
     depends_on:
       postgres:
         condition: service_healthy

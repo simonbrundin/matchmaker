@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition, @safelytyped/sql */
-import { postgresPool } from "~/server/lib/postgres";
+import { postgresPool } from "../../../../lib/postgres";
 
 export default defineEventHandler(async (event) => {
   const playerId = getRouterParam(event, "id");
