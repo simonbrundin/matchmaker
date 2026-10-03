@@ -56,38 +56,59 @@ export async function analyzeIncomingMessage(
 ): Promise<AIResponseSuggestion> {
   const client = getOpenAIClient();
 
-  const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: `Spelarens namn: ${playerName}\nInkommande meddelande: "${message}"`,
-      },
-    ],
-    response_format: { type: "json_object" },
-  });
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+
+      const completion = await client.chat.completions.create(
+        {
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: `Spelarens namn: ${playerName}\nInkommande meddelande: "${message}"`,
+            },
+          ],
+          response_format: { type: "json_object" },
+        },
+        { signal: controller.signal as any },
+      );
+
+      clearTimeout(timeout);
 
   const content = completion.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error("No response from OpenAI");
+      if (!content) throw new Error("No response from OpenAI");
+
+      try {
+        const parsed = JSON.parse(content);
+        return {
+          response: parsed.response || "Tack för ditt svar!",
+          confidence: parsed.confidence || 0.5,
+          shouldCreateUnavailability: parsed.shouldCreateUnavailability || false,
+          unavailability: parsed.unavailability,
+        };
+      } catch {
+        return {
+          response: "Tack för ditt svar!",
+          confidence: 0.5,
+          shouldCreateUnavailability: false,
+        };
+      }
+    } catch (err) {
+      lastError = err;
+      if (err instanceof Error && err.name === "AbortError") break;
+    }
   }
 
-  try {
-    const parsed = JSON.parse(content);
-    return {
-      response: parsed.response || "Tack för ditt svar!",
-      confidence: parsed.confidence || 0.5,
-      shouldCreateUnavailability: parsed.shouldCreateUnavailability || false,
-      unavailability: parsed.unavailability,
-    };
-  } catch {
-    return {
-      response: "Tack för ditt svar!",
-      confidence: 0.5,
-      shouldCreateUnavailability: false,
-    };
-  }
+  console.error("[ai] analyzeIncomingMessage failed after retries:", lastError);
+  return {
+    response: "Tack för ditt svar!",
+    confidence: 0,
+    shouldCreateUnavailability: false,
+  };
 }
 
 export async function generateInviteMessage(
@@ -104,23 +125,41 @@ export async function generateInviteMessage(
 
   const client = getOpenAIClient();
 
-  const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content:
-          "Du skapar inbjudningsmeddelanden för padel. Var kort och trevlig. Inkludera alltid referenskoden i slutet av meddelandet.",
-      },
-      {
-        role: "user",
-        content: `Skapa inbjudnings-SMS till ${playerName} för padel ${date} kl ${time}.${shortRef} Max 2 meningar.`,
-      },
-    ],
-  });
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
 
-  return (
-    completion.choices[0]?.message?.content ||
-    `Hej ${playerName}! Vill du spela padel ${date} kl ${time}?${shortRef}`
-  );
+      const completion = await client.chat.completions.create(
+        {
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Du skapar inbjudningsmeddelanden för padel. Var kort och trevlig. Inkludera alltid referenskoden i slutet av meddelandet.",
+            },
+            {
+              role: "user",
+              content: `Skapa inbjudnings-SMS till ${playerName} för padel ${date} kl ${time}.${shortRef} Max 2 meningar.`,
+            },
+          ],
+        },
+        { signal: controller.signal as any },
+      );
+
+      clearTimeout(timeout);
+      return (
+        completion.choices[0]?.message?.content ||
+        `Hej ${playerName}! Vill du spela padel ${date} kl ${time}?${shortRef}`
+      );
+    } catch (err) {
+      lastError = err;
+      if (err instanceof Error && err.name === "AbortError") break;
+    }
+  }
+
+  console.error("[ai] generateInviteMessage failed after retries:", lastError);
+  return `Hej ${playerName}! Vill du spela padel ${date} kl ${time}?${shortRef}`;
 }

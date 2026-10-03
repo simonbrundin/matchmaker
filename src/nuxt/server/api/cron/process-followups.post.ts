@@ -1,5 +1,4 @@
 import { postgresPool } from "~~/server/lib/postgres";
-import { getBookingService } from "~~/server/lib/booking";
 import { getSMSClient } from "~~/server/lib/sms-gateway";
 import { sendToAdmin } from "~~/server/lib/telegram";
 
@@ -24,21 +23,18 @@ interface PendingInvite {
 }
 
 export default defineEventHandler(async (event) => {
-  const bookingService = getBookingService();
   const smsClient = await getSMSClient();
 
   const now = new Date();
   const currentHour = now.getHours();
   const currentDay = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
-  const todayStr = now.toISOString().split("T")[0];
 
-  // Get pending bookings that are due
+  // Get pending bookings that are due (today, time already passed)
   const pendingResult = await postgresPool.query(
     `SELECT * FROM bookings
      WHERE status = 'pending'
-       AND scheduled_date <= $1
-       AND scheduled_time <= $2`,
-    [todayStr, now.toTimeString().slice(0, 5)],
+       AND scheduled_date = CURRENT_DATE
+       AND scheduled_time <= CURRENT_TIME`,
   );
 
   let messagesSent = 0;

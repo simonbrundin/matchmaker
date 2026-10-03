@@ -10,17 +10,13 @@ import { sendHostConfirmations, sendHostReminders } from "./host-confirmations";
 import { sendPlayerInvites } from "./player-invites";
 
 let smsClientPromise: Promise<SMSGatewayClient> | null = null;
+let isRunning = false;
 
 async function getSMSClientWithCache(): Promise<SMSGatewayClient> {
   if (!smsClientPromise) {
     smsClientPromise = getSMSClient();
   }
   return smsClientPromise;
-}
-
-function getSwedishDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return `${date.getDate()}/${date.getMonth() + 1}`;
 }
 
 function getRound(): number {
@@ -36,32 +32,40 @@ export function startCronJobs(): void {
 
   // 08:00 - Host confirmations and player invites
   cron.schedule("0 8 * * *", async () => {
+    if (isRunning) { console.log("⏭ Already running, skipping 08:00"); return; }
+    isRunning = true;
     console.log("📅 Running 08:00...");
-    await runHostAndPlayerJobs();
+    await runHostAndPlayerJobs().finally(() => { isRunning = false; });
   });
 
   // 12:30 - Player invites (Mon-Thu)
   cron.schedule("30 12 * * *", async () => {
+    if (isRunning) { console.log("⏭ Already running, skipping 12:30"); return; }
     const day = new Date().getDay();
     if (day >= 1 && day <= 4) {
+      isRunning = true;
       console.log("📨 Running 12:30...");
-      await runPlayerInviteJobs();
+      await runPlayerInviteJobs().finally(() => { isRunning = false; });
     }
   });
 
   // 17:00 - Player invites (Mon-Thu)
   cron.schedule("0 17 * * *", async () => {
+    if (isRunning) { console.log("⏭ Already running, skipping 17:00"); return; }
     const day = new Date().getDay();
     if (day >= 1 && day <= 4) {
+      isRunning = true;
       console.log("📨 Running 17:00...");
-      await runPlayerInviteJobs();
+      await runPlayerInviteJobs().finally(() => { isRunning = false; });
     }
   });
 
   // 13:00 - Host reminders
   cron.schedule("0 13 * * *", async () => {
+    if (isRunning) { console.log("⏭ Already running, skipping 13:00"); return; }
+    isRunning = true;
     console.log("📨 Running 13:00 host reminders...");
-    await runHostReminderJobs();
+    await runHostReminderJobs().finally(() => { isRunning = false; });
   });
 
   console.log(
