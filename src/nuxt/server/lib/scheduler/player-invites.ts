@@ -10,6 +10,7 @@ import { getBookingService } from "../booking";
 import type { SMSGatewayClient } from "../sms-gateway";
 import {
   fetchWeeklyTimesForDay,
+  findExistingBooking,
   getBookingWithPlayers,
 } from "./weekly-times";
 import { sendPlayerInvite } from "./sms-helpers";
@@ -50,7 +51,10 @@ async function processBookingForPlayerInvites(
   dateStr: string,
   round: number,
 ): Promise<void> {
-  const booking = await getBookingWithPlayers(wt.hall_id || "", dateStr, wt.time);
+  const existing = await findExistingBooking(dateStr, wt.time);
+  if (!existing) return;
+
+  const booking = await getBookingWithPlayers(existing.id);
 
   if (!booking || !booking.host_confirmed) return;
   if (booking.status === "confirmed") return;
