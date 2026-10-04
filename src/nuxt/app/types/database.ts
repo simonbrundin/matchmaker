@@ -90,8 +90,6 @@ export interface BookingBase {
   updated_at: string;
 }
 
-export interface Booking extends BookingBase {}
-
 export type BookedPlayerStatus =
   | "invited"
   | "confirmed"

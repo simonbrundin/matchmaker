@@ -45,4 +45,10 @@ export default defineNuxtConfig({
     openaiApiKey: process.env.OPENAI_API_KEY,
     adminTelegramChatId: process.env.ADMIN_TELEGRAM_CHAT_ID,
   },
+
+  // Auth middleware for admin routes
+  // TODO: Uncomment once real auth is implemented (see middleware/auth.ts)
+  // routeRules: {
+  //   '/admin/**': { middleware: ['auth'] },
+  // },
 });
