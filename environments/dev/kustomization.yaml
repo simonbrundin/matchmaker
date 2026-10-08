@@ -2,12 +2,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-    - ../common
-    - db
+  - ../common
+  - db
 
 patches:
-    - path: deployment-patch.yaml
+  - path: deployment-patch.yaml
 
 labels:
-    - pairs:
-          environment: dev
+  - pairs:
+      environment: dev
